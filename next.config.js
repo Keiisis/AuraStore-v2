@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Force Vercel Redeploy - 2026-02-12
 const nextConfig = {
     images: {
         remotePatterns: [
