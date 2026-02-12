@@ -26,21 +26,25 @@ export default function LoginPage() {
 
         try {
             if (isLogin) {
-                await signIn({ email, password });
-                // The server action redirects on success, so no code here will run
+                const res = await signIn({ email, password });
+                if (res?.error) throw new Error(res.error);
+
+                // Force hard reload to ensure cookies are sent to server
+                window.location.href = "/dashboard";
             } else {
                 const res = await signUp({ email, password });
-                if (res.error) throw new Error(res.error);
+                if (res?.error) throw new Error(res.error);
                 setSuccess(res.message || "Success!");
             }
         } catch (err: any) {
-            // Next.js redirection throws an error type "NEXT_REDIRECT" that we must ignore/allow
-            if (err.message === "NEXT_REDIRECT" || err.message?.includes("NEXT_REDIRECT")) {
-                return; // Let the redirect happen
-            }
             setError(err.message);
         } finally {
-            setLoading(false);
+            // Keep loading true if redirecting to prevent UI flash
+            if (isLogin && !error) {
+                // do nothing, wait for redirect
+            } else {
+                setLoading(false);
+            }
         }
     };
 

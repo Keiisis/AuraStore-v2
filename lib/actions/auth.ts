@@ -23,7 +23,7 @@ export async function signIn(formData: z.infer<typeof authSchema>) {
     }
 
     revalidatePath("/", "layout");
-    redirect("/dashboard");
+    return { success: true };
 }
 
 export async function signUp(formData: z.infer<typeof authSchema>) {
