@@ -19,7 +19,7 @@ export async function GET(request: Request) {
         });
     }
 
-    // Try to fetch the order
+    // Try to fetch RECENT orders to see what's visible
     try {
         const { createClient } = await import("@supabase/supabase-js");
         const supabaseAdmin = createClient(
@@ -28,31 +28,41 @@ export async function GET(request: Request) {
             { auth: { persistSession: false } }
         );
 
-        const { data, error } = await supabaseAdmin
+        // Fetch last 5 orders globally
+        const { data: recentOrders, error: listError } = await supabaseAdmin
             .from("orders")
-            .select("id, customer_name, total, items, provider_order_id")
+            .select("id, customer_name, total, provider_order_id, created_at")
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+        // specific search
+        const { data: exactMatch } = await supabaseAdmin
+            .from("orders")
+            .select("id")
             .eq("provider_order_id", sessionId)
             .maybeSingle();
 
         return NextResponse.json({
-            status: "query_result",
-            hasServiceKey,
-            serviceKeyPrefix: serviceKeyPrefix + "...",
-            found: !!data,
-            error: error?.message || null,
-            order: data ? {
-                id: data.id,
-                customer: data.customer_name,
-                total: data.total,
-                itemCount: data.items?.length || 0,
-                providerMatch: data.provider_order_id === sessionId
-            } : null
+            status: "deep_diagnostic",
+            timestamp: new Date().toISOString(),
+            env: {
+                hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+                urlPrefix: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 15),
+                hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+                keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10)
+            },
+            search: {
+                targetId: sessionId,
+                foundExact: !!exactMatch,
+            },
+            recentOrders: recentOrders || [],
+            listError: listError?.message
         });
     } catch (e: any) {
         return NextResponse.json({
             status: "exception",
-            hasServiceKey,
-            error: e.message
+            error: e.message,
+            stack: e.stack
         });
     }
 }

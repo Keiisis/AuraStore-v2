@@ -155,7 +155,19 @@ export async function getOrderBySessionId(sessionId: string) {
 
         console.log(`[getOrderBySessionId] Searching for: ${sessionId}`);
 
-        // Try exact match on provider_order_id first
+        // 0. Try via RPC (Bypasses RLS completely)
+        const { data: rpcData, error: rpcError } = await supabaseAdmin
+            .rpc('get_order_by_provider_id', { p_provider_id: sessionId });
+
+        if (rpcData) {
+            console.log(`[getOrderBySessionId] Found via RPC!`);
+            // RPC returns { order: ..., store: ... }, fix structure
+            const order = rpcData.order;
+            order.stores = rpcData.store;
+            return { order };
+        }
+
+        // 1. Try exact match on provider_order_id first
         const { data, error } = await supabaseAdmin
             .from("orders")
             .select(`
