@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, FileText, Printer, Sparkles } from "lucide-react";
+import { MoreHorizontal, FileText, Sparkles } from "lucide-react";
 import { formatPrice } from "@/lib/currency-engine";
 import { updateOrderStatus } from "@/lib/actions/order";
 import { askAuraAssistant } from "@/lib/actions/ai";
@@ -34,15 +34,7 @@ export function OrderTableClient({ orders: initialOrders, storeSlug, storeName }
     };
 
     const handleGenerateInvoice = (order: any) => {
-        toast.info("Génération de la facture extraordinaire...", {
-            icon: <Printer className="w-4 h-4 text-primary" />,
-        });
-
-        // Simulating automated download for now
-        // In a real scenario, this would trigger a PDF generation client-side or server-side
-        setTimeout(() => {
-            window.print(); // Temporary for demo of 'professional action'
-        }, 1500);
+        setSelectedOrderForInvoice(order);
     };
 
     const handleAiRelance = async (order: any) => {
@@ -131,17 +123,15 @@ export function OrderTableClient({ orders: initialOrders, storeSlug, storeName }
                                             <Sparkles className="w-4 h-4" />
                                         </button>
                                     )}
-                                    {order.status === 'delivered' && (
-                                        <motion.button
-                                            initial={{ opacity: 0, x: 10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            onClick={() => handleGenerateInvoice(order)}
-                                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-primary hover:text-white transition-all"
-                                        >
-                                            <FileText className="w-3 h-3" />
-                                            Facture
-                                        </motion.button>
-                                    )}
+                                    <motion.button
+                                        initial={{ opacity: 0, x: 10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        onClick={() => handleGenerateInvoice(order)}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-primary hover:text-white transition-all"
+                                    >
+                                        <FileText className="w-3 h-3" />
+                                        Facture
+                                    </motion.button>
                                     <button className="p-2 rounded-lg hover:bg-white/5 text-white/20 hover:text-white transition-colors">
                                         <MoreHorizontal className="w-4 h-4" />
                                     </button>
@@ -152,12 +142,15 @@ export function OrderTableClient({ orders: initialOrders, storeSlug, storeName }
                 </tbody>
             </table>
 
-            {/* Hidden Invoices for printing */}
-            <div className="hidden">
-                {orders.map(order => (
-                    <Invoice key={`inv-${order.id}`} order={order} storeName={storeName} />
-                ))}
-            </div>
+            {/* Invoice Modal */}
+            {selectedOrderForInvoice && (
+                <Invoice
+                    order={selectedOrderForInvoice}
+                    storeName={storeName}
+                    isOpen={!!selectedOrderForInvoice}
+                    onClose={() => setSelectedOrderForInvoice(null)}
+                />
+            )}
         </div>
     );
 }
