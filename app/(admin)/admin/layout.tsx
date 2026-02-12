@@ -29,7 +29,10 @@ export default async function AdminLayout({
         redirect("/login");
     }
 
-    if (profile.role !== "admin") {
+    // Force cast to bypass narrowing issues during deployment
+    const userRole = (profile as any).role;
+
+    if (userRole !== "admin") {
         redirect("/dashboard");
     }
 
