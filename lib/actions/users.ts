@@ -5,9 +5,18 @@ import { revalidatePath } from "next/cache";
 
 export async function getAllUsers() {
     const supabase = createClient();
-    const { data: { user: admin } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!admin) return { error: "Non autorisé", users: [] };
+    if (!user) return { error: "Non connecté", users: [] };
+
+    // Verify admin role strictly
+    const { data: adminProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+    if (adminProfile?.role !== "admin") return { error: "Accès refusé: Rôle Admin requis", users: [] };
 
     // Fetch profiles first to ensure visibility, with left join for subscriptions
     const { data: users, error } = await supabase
@@ -31,8 +40,18 @@ export async function getAllUsers() {
 
 export async function updateUserRole(userId: string, role: string) {
     const supabase = createClient();
-    const { data: { user: admin } } = await supabase.auth.getUser();
-    if (!admin) return { error: "Non autorisé" };
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return { error: "Non connecté" };
+
+    // Verify admin role strictly
+    const { data: adminProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+    if (adminProfile?.role !== "admin") return { error: "Accès refusé" };
 
     const { error } = await supabase
         .from("profiles")
@@ -46,8 +65,18 @@ export async function updateUserRole(userId: string, role: string) {
 
 export async function updateUserPlan(userId: string, planId: string) {
     const supabase = createClient();
-    const { data: { user: admin } } = await supabase.auth.getUser();
-    if (!admin) return { error: "Non autorisé" };
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return { error: "Non connecté" };
+
+    // Verify admin role strictly
+    const { data: adminProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+    if (adminProfile?.role !== "admin") return { error: "Accès refusé" };
 
     // 1. Handle Plan Removal (Aucun Plan)
     if (!planId || planId === "") {
@@ -88,8 +117,18 @@ export async function updateUserPlan(userId: string, planId: string) {
 
 export async function deleteUser(userId: string) {
     const supabase = createClient();
-    const { data: { user: admin } } = await supabase.auth.getUser();
-    if (!admin) return { error: "Non autorisé" };
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return { error: "Non connecté" };
+
+    // Verify admin role strictly
+    const { data: adminProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+    if (adminProfile?.role !== "admin") return { error: "Accès refusé" };
 
     // Note: This only deletes the profile. Deleting auth.user requires admin service role client which is usually handled in an edge function or a specific API route. 
     // For now, we delete the profile and associated data.

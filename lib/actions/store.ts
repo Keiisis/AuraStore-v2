@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
@@ -237,6 +237,46 @@ export async function deleteStore(storeId: string) {
         return { error: "Store not found or you don't have permission to delete it" };
     }
 
+    // 1. CLEANUP: Delete all associated images (Products + Branding)
+    // Fetch store branding + all product images
+    const { data: storeProducts } = await supabase
+        .from("products")
+        .select("images")
+        .eq("store_id", storeId);
+
+    const imagesToDelete: string[] = [];
+
+    // Add store branding
+    if (existingStore.logo_url) imagesToDelete.push(existingStore.logo_url);
+    if (existingStore.banner_url) imagesToDelete.push(existingStore.banner_url);
+
+    // Add product images
+    storeProducts?.forEach(p => {
+        if (p.images && Array.isArray(p.images)) {
+            imagesToDelete.push(...p.images);
+        }
+    });
+
+    if (imagesToDelete.length > 0) {
+        const filePaths = imagesToDelete.map((url: string) => {
+            try {
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split("/store-assets/");
+                return pathParts.length > 1 ? pathParts[1] : null;
+            } catch (e) { return null; }
+        }).filter((p: any) => p !== null) as string[];
+
+        // Batch delete (Supabase Storage supports batch)
+        if (filePaths.length > 0) {
+            // Processing in chunks of 50 to be safe
+            const chunkSize = 50;
+            for (let i = 0; i < filePaths.length; i += chunkSize) {
+                const chunk = filePaths.slice(i, i + chunkSize);
+                await supabase.storage.from("store-assets").remove(chunk);
+            }
+        }
+    }
+
     const { error } = await supabase
         .from("stores")
         .delete()
@@ -252,18 +292,22 @@ export async function deleteStore(storeId: string) {
 }
 
 // Get store by slug
-export async function getStoreBySlug(slug: string) {
-    const supabase = createClient();
+export const getStoreBySlug = unstable_cache(
+    async (slug: string) => {
+        const supabase = createClient();
 
-    const { data: store, error } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("slug", slug)
-        .single();
+        const { data: store, error } = await supabase
+            .from("stores")
+            .select("*")
+            .eq("slug", slug)
+            .single();
 
-    if (error) {
-        return null;
-    }
+        if (error) {
+            return null;
+        }
 
-    return store;
-}
+        return store;
+    },
+    ["store-by-slug"],
+    { revalidate: 3600, tags: ["stores"] }
+);

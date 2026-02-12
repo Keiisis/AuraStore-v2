@@ -28,6 +28,7 @@ function getSubdomain(request: NextRequest): string | null {
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
+    const isProtectedPath = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
     // Skip middleware for static files and API routes
     if (
@@ -41,38 +42,52 @@ export async function middleware(request: NextRequest) {
     // Check for subdomain (multi-tenancy)
     const subdomain = getSubdomain(request);
 
+    // Base response (either next() or rewrite())
+    let response: NextResponse;
+
     if (subdomain) {
         // Rewrite to storefront route with store slug
         const url = request.nextUrl.clone();
         url.pathname = `/store/${subdomain}${pathname}`;
-
-        // Add store slug as header for server components
-        const response = NextResponse.rewrite(url);
+        response = NextResponse.rewrite(url);
         response.headers.set("x-store-slug", subdomain);
-        return response;
+    } else if (isProtectedPath) {
+        response = await updateSession(request);
+    } else if (pathname.startsWith("/auth/callback")) {
+        response = await updateSession(request);
+    } else {
+        response = NextResponse.next();
     }
 
-    // Protected routes check
-    const protectedPaths = ["/dashboard", "/admin"];
-    const isProtectedPath = protectedPaths.some((path) =>
-        pathname.startsWith(path)
-    );
+    // ============================================================
+    // SECURITY HEADERS INJECTION (Kage Level Protection)
+    // ============================================================
+    const cspHeader = `
+        default-src 'self';
+        script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://cdn.cinetpay.com;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' blob: data: https://* border-radius.com;
+        font-src 'self';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';
+        block-all-mixed-content;
+        upgrade-insecure-requests;
+    `.replace(/\s{2,}/g, ' ').trim();
 
-    if (isProtectedPath) {
-        // Update session and check auth
-        const response = await updateSession(request);
+    response.headers.set("Content-Security-Policy", cspHeader);
+    response.headers.set("X-Frame-Options", "DENY"); // Prevent Clickjacking
+    response.headers.set("X-Content-Type-Options", "nosniff"); // Prevent MIME Sniffing
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()"); // Limit capabilities
 
-        // The session update handles auth refresh
-        // Additional auth checks can be added here if needed
-        return response;
+    // Strict Transport Security (HSTS) - Force HTTPS
+    if (process.env.NODE_ENV === "production") {
+        response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
     }
 
-    // Auth callback route
-    if (pathname.startsWith("/auth/callback")) {
-        return await updateSession(request);
-    }
-
-    return NextResponse.next();
+    return response;
 }
 
 export const config = {

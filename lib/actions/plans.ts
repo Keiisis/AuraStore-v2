@@ -77,16 +77,16 @@ export async function getPlan(planId: string) {
 export async function createPlan(input: PlanInput) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Non autorisé" };
+    if (!user) return { error: "Non connecté" };
 
-    // Verify admin
-    const { data: profile } = await supabase
+    // Verify admin role strictly
+    const { data: adminProfile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
 
-    if (profile?.role !== "admin") return { error: "Accès refusé: privilèges Master requis" };
+    if (adminProfile?.role !== "admin") return { error: "Accès refusé: Privilèges Master requis" };
 
     const { error } = await supabase
         .from("subscription_plans")
@@ -106,15 +106,16 @@ export async function createPlan(input: PlanInput) {
 export async function updatePlan(planId: string, input: Partial<PlanInput>) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Non autorisé" };
+    if (!user) return { error: "Non connecté" };
 
-    const { data: profile } = await supabase
+    // Verify admin role strictly
+    const { data: adminProfile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
 
-    if (profile?.role !== "admin") return { error: "Accès refusé" };
+    if (adminProfile?.role !== "admin") return { error: "Accès refusé" };
 
     const { error } = await supabase
         .from("subscription_plans")
@@ -132,15 +133,16 @@ export async function updatePlan(planId: string, input: Partial<PlanInput>) {
 export async function deletePlan(planId: string) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Non autorisé" };
+    if (!user) return { error: "Non connecté" };
 
-    const { data: profile } = await supabase
+    // Verify admin role strictly
+    const { data: adminProfile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
 
-    if (profile?.role !== "admin") return { error: "Accès refusé" };
+    if (adminProfile?.role !== "admin") return { error: "Accès refusé" };
 
     // Check if any active subscriptions use this plan
     const { count } = await supabase

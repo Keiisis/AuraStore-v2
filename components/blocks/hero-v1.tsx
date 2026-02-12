@@ -37,6 +37,7 @@ export function HeroV1({ config }: HeroV1Props) {
                         alt="Hero Background"
                         fill
                         priority
+                        sizes="100vw"
                         className="object-cover"
                     />
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />

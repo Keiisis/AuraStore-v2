@@ -9,6 +9,7 @@
         "lint": "next lint"
     },
     "dependencies": {
+        "@paypal/checkout-server-sdk": "^1.0.3",
         "@radix-ui/react-slot": "^1.0.2",
         "@react-three/drei": "^9.122.0",
         "@react-three/fiber": "^8.18.0",

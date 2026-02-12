@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import type { InsertProduct, UpdateProduct } from "@/lib/supabase/types";
@@ -184,6 +184,24 @@ export async function deleteProduct(productId: string) {
         return { error: "Product not found or you don't have permission" };
     }
 
+    // 4. CLEANUP: Delete images from Storage (Cost Optimization)
+    if (product.images && product.images.length > 0) {
+        const filePaths = product.images.map((url: string) => {
+            // Extract path from URL: .../storage/v1/object/public/store-assets/PATH
+            try {
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split("/store-assets/");
+                return pathParts.length > 1 ? pathParts[1] : null;
+            } catch (e) {
+                return null;
+            }
+        }).filter((p: any) => p !== null) as string[];
+
+        if (filePaths.length > 0) {
+            await supabase.storage.from("store-assets").remove(filePaths);
+        }
+    }
+
     // Delete the product
     const { error } = await supabase
         .from("products")
@@ -200,22 +218,26 @@ export async function deleteProduct(productId: string) {
 }
 
 // Get products for a store
-export async function getStoreProducts(storeId: string) {
-    const supabase = createClient();
+export const getStoreProducts = unstable_cache(
+    async (storeId: string) => {
+        const supabase = createClient();
 
-    const { data: products, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("store_id", storeId)
-        .order("created_at", { ascending: false });
+        const { data: products, error } = await supabase
+            .from("products")
+            .select("*")
+            .eq("store_id", storeId)
+            .order("created_at", { ascending: false });
 
-    if (error) {
-        console.error("Error fetching products:", error);
-        return [];
-    }
+        if (error) {
+            console.error("Error fetching products:", error);
+            return [];
+        }
 
-    return products;
-}
+        return products;
+    },
+    ["store-products"],
+    { revalidate: 3600, tags: ["products"] }
+);
 
 // Generate slug from name
 export async function generateSlug(name: string): Promise<string> {
@@ -227,43 +249,51 @@ export async function generateSlug(name: string): Promise<string> {
 }
 
 // Get product by slug and store slug
-export async function getProductBySlug(storeSlug: string, productSlug: string) {
-    const supabase = createClient();
+export const getProductBySlug = unstable_cache(
+    async (storeSlug: string, productSlug: string) => {
+        const supabase = createClient();
 
-    const { data: store } = await supabase
-        .from("stores")
-        .select("id")
-        .eq("slug", storeSlug)
-        .single();
+        const { data: store } = await supabase
+            .from("stores")
+            .select("id")
+            .eq("slug", storeSlug)
+            .single();
 
-    if (!store) return null;
+        if (!store) return null;
 
-    const { data: product } = await supabase
-        .from("products")
-        .select("*")
-        .eq("store_id", store.id)
-        .eq("slug", productSlug)
-        .single();
+        const { data: product } = await supabase
+            .from("products")
+            .select("*")
+            .eq("store_id", store.id)
+            .eq("slug", productSlug)
+            .single();
 
-    return product;
-}
+        return product;
+    },
+    ["product-by-slug"],
+    { revalidate: 3600, tags: ["products"] }
+);
 
 // Get similar products based on category
-export async function getSimilarProducts(storeId: string, currentProductId: string, category: string | null, limit: number = 4) {
-    const supabase = createClient();
+export const getSimilarProducts = unstable_cache(
+    async (storeId: string, currentProductId: string, category: string | null, limit: number = 4) => {
+        const supabase = createClient();
 
-    let query = supabase
-        .from("products")
-        .select("*")
-        .eq("store_id", storeId)
-        .eq("is_active", true)
-        .neq("id", currentProductId);
+        let query = supabase
+            .from("products")
+            .select("*")
+            .eq("store_id", storeId)
+            .eq("is_active", true)
+            .neq("id", currentProductId);
 
-    if (category) {
-        query = query.eq("category", category);
-    }
+        if (category) {
+            query = query.eq("category", category);
+        }
 
-    const { data: products } = await query.limit(limit);
+        const { data: products } = await query.limit(limit);
 
-    return products || [];
-}
+        return products || [];
+    },
+    ["similar-products"],
+    { revalidate: 3600, tags: ["products"] }
+);

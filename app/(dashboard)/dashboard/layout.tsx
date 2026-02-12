@@ -36,13 +36,11 @@ export default async function DashboardLayout({
             <DashboardHeader user={user} stores={stores || []} />
             <OrderNotificationListener />
 
-            {/* Omni-Voice Assistant (Centralized) */}
-            {stores?.[0] && (
-                <AuraOmniVoice
-                    storeId={stores[0].id}
-                    userRole={userRole}
-                />
-            )}
+            {/* Omni-Voice Assistant (Smart Context) */}
+            <AuraOmniVoice
+                stores={stores || []}
+                userRole={userRole}
+            />
 
             <div className="flex">
                 {/* Sidebar - Fixed width 56 (224px) */}

@@ -7,6 +7,9 @@ import { DEFAULT_THEME, ThemeConfig } from "@/lib/theme-engine/types";
 import { ImageBanner } from "@/components/blocks/image-banner";
 import { StorefrontWrapper } from "@/components/storefront/wrapper";
 
+import { getStoreBySlug } from "@/lib/actions/store";
+import { getStoreProducts } from "@/lib/actions/product";
+
 interface StorePageProps {
     params: {
         slug: string;
@@ -14,29 +17,18 @@ interface StorePageProps {
 }
 
 export default async function StorePage({ params }: StorePageProps) {
-    const supabase = createClient();
     const headersList = headers();
     const isSubdomain = headersList.get("x-store-slug") === params.slug;
 
-    // Fetch store by slug
-    const { data: store, error } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("slug", params.slug)
-        .eq("is_active", true)
-        .single();
+    // Fetch store by slug using cached action
+    const store = await getStoreBySlug(params.slug);
 
-    if (error || !store) {
+    if (!store || !store.is_active) {
         notFound();
     }
 
-    // Fetch products for this store
-    const { data: products } = await supabase
-        .from("products")
-        .select("*")
-        .eq("store_id", store.id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
+    // Fetch products for this store using cached action
+    const products = await getStoreProducts(store.id);
 
     // Get theme config (with fallback to default)
     const themeConfig: ThemeConfig = store.theme_config || DEFAULT_THEME;
@@ -71,18 +63,35 @@ export async function generateMetadata({ params }: StorePageProps) {
 
     const { data: store } = await supabase
         .from("stores")
-        .select("name, description")
+        .select("name, description, logo_url, banner_url")
         .eq("slug", params.slug)
         .single();
 
     if (!store) {
         return {
-            title: "Store Not Found",
+            title: "Boutique Introuvable",
         };
     }
 
+    const images = [];
+    if (store.banner_url) images.push({ url: store.banner_url, width: 1200, height: 630, alt: store.name });
+    if (store.logo_url) images.push({ url: store.logo_url, width: 400, height: 400, alt: `${store.name} Logo` });
+
     return {
         title: store.name,
-        description: store.description || `Welcome to ${store.name}`,
+        description: store.description || `Découvrez l'univers de ${store.name} sur AuraStore.`,
+        openGraph: {
+            title: store.name,
+            description: store.description || `Découvrez l'univers de ${store.name} sur AuraStore.`,
+            images,
+            type: 'website',
+            siteName: "AuraStore",
+        },
+        twitter: {
+            card: "summary_large_image",
+            title: store.name,
+            description: store.description || `Découvrez l'univers de ${store.name} sur AuraStore.`,
+            images: images.length > 0 ? [images[0].url] : [],
+        }
     };
 }

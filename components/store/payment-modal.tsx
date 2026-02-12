@@ -135,6 +135,7 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
                         total: totalAmount,
                         payment_method: "stripe",
                         shipping_address: { address: customerInfo.address },
+                        provider_order_id: result.sessionId,
                         notes: `Stripe Session ID: ${result.sessionId}`
                     });
 
@@ -143,7 +144,87 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
                 }
             }
 
-            // OTHER METHODS (Previous Logic / Manual Orders)
+            // FEDAPAY, KKIAPAY, CINETPAY & PAYPAL PROCESSING (Real Integration)
+            if (selectedMethod === "fedapay" || selectedMethod === "kkiapay" || selectedMethod === "cinetpay" || selectedMethod === "paypal") {
+                // 1. Create Intent / Get Configuration Server-Side
+                const { createPaymentIntent } = await import("@/lib/actions/payment");
+                const intentResult = await createPaymentIntent(
+                    selectedMethod as any,
+                    store.id,
+                    items,
+                    totalAmount,
+                    customerInfo,
+                    (currency as any)?.code || "XOF"
+                );
+
+                if (!intentResult.success || !intentResult.data) {
+                    throw new Error(intentResult.error || "Erreur d'initialisation du paiement");
+                }
+
+                // 2a. REDIRECT METHODS (FedaPay, CinetPay, PayPal)
+                if (["fedapay", "cinetpay", "paypal"].includes(selectedMethod) && intentResult.data.url) {
+                    // Create Order as Pending FIRST
+                    const { createOrder } = await import("@/lib/actions/order");
+                    await createOrder({
+                        store_id: store.id,
+                        customer_name: customerInfo.name,
+                        customer_email: customerInfo.email,
+                        customer_phone: customerInfo.phone,
+                        items: items,
+                        subtotal: totalAmount,
+                        total: totalAmount,
+                        payment_method: selectedMethod as any,
+                        shipping_address: { address: customerInfo.address },
+                        provider_order_id: intentResult.data.transactionId,
+                        notes: `${selectedMethod.toUpperCase()} Transaction ID: ${intentResult.data.transactionId}`
+                    });
+
+                    // Redirect to payment page
+                    window.location.href = selectedMethod === "fedapay"
+                        ? `https://checkout.fedapay.com/${intentResult.data.url}`
+                        : intentResult.data.url;
+                    return;
+                }
+
+                // 2b. KKIAPAY: Open Widget
+                if (selectedMethod === "kkiapay") {
+                    const publicKey = intentResult.data.rawResponse?.publicKey;
+                    if (!publicKey) throw new Error("Clé publique KkiaPay introuvable");
+
+                    // Load KkiaPay Script Dynamically
+                    // <script src="https://cdn.kkiapay.me/k.js"></script>
+                    if (!document.getElementById("kkiapay-script")) {
+                        const script = document.createElement("script");
+                        script.id = "kkiapay-script";
+                        script.src = "https://cdn.kkiapay.me/k.js";
+                        document.body.appendChild(script);
+                        // Wait for load
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+
+                    // Trigger KkiaPay (Browser Logic)
+                    // @ts-ignore
+                    if (typeof openKkiapayWidget === "function") {
+                        // @ts-ignore
+                        openKkiapayWidget({
+                            amount: totalAmount,
+                            key: publicKey,
+                            sandbox: true, // TODO: Make dynamic
+                            email: customerInfo.email,
+                            phone: customerInfo.phone,
+                            name: customerInfo.name,
+                            callback: `${window.location.origin}/store/${store.slug}/success`
+                        });
+                        setIsProcessing(false); // Widget is open, stop spinner
+                        return;
+                    } else {
+                        // Fallback: Just create order (Simulation/Fail)
+                        throw new Error("Impossible de charger le widget KkiaPay");
+                    }
+                }
+            }
+
+            // FALLBACK / MANUAL METHODS (PayPal, Cash, etc.)
             // Import the action
             const { createOrder } = await import("@/lib/actions/order");
 

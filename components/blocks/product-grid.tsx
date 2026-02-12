@@ -130,6 +130,7 @@ export function ProductGrid({ config, products, storeSlug, isSubdomain }: Produc
                                                     alt={product.name || "Product"}
                                                     fill
                                                     priority={index < 4}
+                                                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                                                     className="object-cover transition-transform duration-1000 group-hover:scale-110 brightness-90 group-hover:brightness-105"
                                                 />
                                             ) : (

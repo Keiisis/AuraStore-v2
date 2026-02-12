@@ -45,28 +45,38 @@ export async function createStripeCheckoutSession({
             apiVersion: "2023-10-16", // Use a specific API version for stability
         });
 
-        // 3. Prepare Line Items
-        console.log("Preparing Stripe Session for items:", JSON.stringify(items, null, 2));
+        // 3. SECURE PRICE VERIFICATION (Anti-Tampering)
+        // Extract product IDs to fetch trusted prices from DB
+        const productIds = items.map(item => item.id).filter(id => id);
+
+        const { data: dbProducts } = await supabase
+            .from("products")
+            .select("id, price, name")
+            .in("id", productIds)
+            .eq("store_id", storeId);
+
+        const dbProductMap = new Map(dbProducts?.map(p => [p.id, p]) || []);
 
         const lineItems = items.map((item) => {
-            const itemName = item.name || "Article Aura";
-            const rawPrice = Number(item.price);
-
-            if (isNaN(rawPrice)) {
-                console.warn(`Prix NaN detecté pour ${itemName}, fallback à 0.`);
+            // TRUSTED SOURCE: Get price from DB, fallback to 0 if not found (security safety)
+            const dbProduct = dbProductMap.get(item.id);
+            if (!dbProduct) {
+                console.warn(`SECURITY ALERT: Product ${item.id} not found in DB or store mismatch. Skipping.`);
+                return null;
             }
 
-            const finalPrice = isNaN(rawPrice) ? 0 : rawPrice;
+            const itemName = dbProduct.name || item.name || "Article Aura";
+            const trustedPrice = Number(dbProduct.price); // Use DB price, ignore client price
 
             // Image handling: Stripe requires valid URLs
             const images = item.image && item.image.startsWith("http") ? [item.image] : [];
 
             // Amount handling
-            let unitAmount = Math.round(finalPrice);
+            let unitAmount = Math.round(trustedPrice);
             const zeroDecimalCurrencies = ["xof", "xaf", "jpy", "clp", "gnf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv"];
 
             if (!zeroDecimalCurrencies.includes(currency.toLowerCase())) {
-                unitAmount = Math.round(finalPrice * 100);
+                unitAmount = Math.round(trustedPrice * 100);
             }
 
             return {
@@ -81,7 +91,11 @@ export async function createStripeCheckoutSession({
                 },
                 quantity: item.quantity || 1,
             };
-        });
+        }).filter(item => item !== null); // Filter out hacked/invalid items
+
+        if (lineItems.length === 0) {
+            return { error: "Erreur de sécurité: Aucun produit valide identifié." };
+        }
 
         // 4. Create Session
         const session = await stripe.checkout.sessions.create({

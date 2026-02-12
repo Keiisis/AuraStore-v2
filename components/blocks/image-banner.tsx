@@ -28,6 +28,7 @@ export function ImageBanner({ config, store }: ImageBannerProps) {
                         alt={store.name}
                         fill
                         priority
+                        sizes="100vw"
                         className="object-cover"
                     />
                 ) : (

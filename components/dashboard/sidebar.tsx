@@ -171,19 +171,7 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
                         </nav>
                     </div>
 
-                    {/* Quick Stats Compact */}
-                    <div className="bg-white/[0.02] rounded-xl p-3 border border-white/5 mx-1">
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <p className="text-sm font-black text-white">0</p>
-                                <p className="text-[8px] text-white/20 font-black uppercase tracking-tighter">Ventes</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-black text-primary">0</p>
-                                <p className="text-[8px] text-white/20 font-black uppercase tracking-tighter">Revenus</p>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </aside>
         </>

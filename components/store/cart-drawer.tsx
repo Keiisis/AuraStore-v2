@@ -122,9 +122,22 @@ export function CartDrawer({ store }: { store: Store }) {
                         </div>
 
                         <div className="pt-2 space-y-2">
+                            {/* Stock Validation */}
+                            {items.some(item => item.quantity > (item.product.stock || 0)) && (
+                                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs font-bold text-center">
+                                    Certains articles ne sont plus en stock. Veuillez ajuster les quantités.
+                                </div>
+                            )}
+
                             <button
-                                onClick={() => setIsPaymentOpen(true)}
-                                className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(254,117,1,0.2)]"
+                                onClick={() => {
+                                    // Security: Double check stock before opening checkout
+                                    const hasStockIssues = items.some(item => item.quantity > (item.product.stock || 0));
+                                    if (hasStockIssues) return;
+                                    setIsPaymentOpen(true);
+                                }}
+                                disabled={items.some(item => item.quantity > (item.product.stock || 0))}
+                                className="w-full py-4 bg-primary text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(254,117,1,0.2)] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                             >
                                 <CreditCard className="w-4 h-4" />
                                 Passer au paiement

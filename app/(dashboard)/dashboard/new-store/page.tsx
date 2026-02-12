@@ -78,6 +78,18 @@ export default function NewStorePage() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
         const file = e.target.files?.[0];
         if (file) {
+            // Client-side validation
+            if (file.size > 5 * 1024 * 1024) {
+                setError("Le fichier est trop volumineux (Max 5MB)");
+                return;
+            }
+            if (!file.type.startsWith("image/")) {
+                setError("Format invalide. Utilisez une image.");
+                return;
+            }
+
+            setError(null); // Clear error if valid
+
             if (type === 'logo') {
                 setLogoFile(file);
                 setLogoPreview(URL.createObjectURL(file));

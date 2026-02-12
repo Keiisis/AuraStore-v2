@@ -4,26 +4,87 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
+const orderItemSchema = z.object({
+    id: z.string().uuid(),
+    quantity: z.number().int().positive(),
+    variant: z.string().optional().nullable(),
+});
+
 const createOrderSchema = z.object({
     store_id: z.string().uuid(),
     customer_email: z.string().email(),
     customer_name: z.string().min(2),
     customer_phone: z.string().optional().nullable(),
-    items: z.any(),
-    subtotal: z.number(),
-    total: z.number(),
+    items: z.array(orderItemSchema), // Strict validation
     payment_method: z.enum(["whatsapp", "stripe", "cash", "paypal", "flutterwave", "fedapay", "kkiapay"]),
     shipping_address: z.any().optional().nullable(),
     notes: z.string().optional().nullable(),
+    provider_order_id: z.string().optional().nullable(),
 });
 
 export async function createOrder(input: z.infer<typeof createOrderSchema>) {
     const supabase = createClient();
 
+    // 1. Validate Store Existence
+    const { data: store } = await supabase
+        .from("stores")
+        .select("id")
+        .eq("id", input.store_id)
+        .single();
+
+    if (!store) return { error: "Boutique introuvable" };
+
+    // 2. Fetch Real Product Prices (Anti-Tampering)
+    const productIds = input.items.map(item => item.id);
+    const { data: products } = await supabase
+        .from("products")
+        .select("id, price, name")
+        .in("id", productIds)
+        .eq("store_id", input.store_id);
+
+    if (!products || products.length === 0) {
+        return { error: "Aucun produit valide trouvé" };
+    }
+
+    const productMap = new Map(products.map(p => [p.id, p]));
+
+    // 3. Recalculate Totals SERVER-SIDE
+    let calculatedSubtotal = 0;
+    const sanitizedItems = [];
+
+    for (const item of input.items) {
+        const product = productMap.get(item.id);
+        if (!product) continue; // Skip invalid products
+
+        const price = Number(product.price);
+        calculatedSubtotal += price * item.quantity;
+
+        sanitizedItems.push({
+            ...item,
+            name: product.name, // Store name snapshot
+            price: price        // Store price snapshot
+        });
+    }
+
+    if (sanitizedItems.length === 0) return { error: "Panier vide ou invalide" };
+
+    const calculatedTotal = calculatedSubtotal; // Add tax/shipping logic here if needed later
+
+    // 4. Insert Order with Trusted Values
     const { data, error } = await supabase
         .from("orders")
         .insert({
-            ...input,
+            store_id: input.store_id,
+            customer_email: input.customer_email,
+            customer_name: input.customer_name,
+            customer_phone: input.customer_phone,
+            items: sanitizedItems,
+            subtotal: calculatedSubtotal, // Override client value
+            total: calculatedTotal,       // Override client value
+            payment_method: input.payment_method,
+            shipping_address: input.shipping_address,
+            notes: input.notes,
+            provider_order_id: input.provider_order_id,
             status: "pending",
         })
         .select()
@@ -35,6 +96,7 @@ export async function createOrder(input: z.infer<typeof createOrderSchema>) {
     }
 
     // revalidate internal dashboard pages to show new order
+    revalidatePath(`/dashboard/${input.store_id}/orders`); // improved path
     revalidatePath("/dashboard/[slug]/orders", "page");
     revalidatePath("/dashboard/[slug]/analytics", "page");
 
@@ -43,6 +105,21 @@ export async function createOrder(input: z.infer<typeof createOrderSchema>) {
 
 export async function updateOrderStatus(orderId: string, status: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled") {
     const supabase = createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Non authentifié" };
+
+    // Strict Ownership Check
+    // Join orders -> stores to check owner_id
+    const { data: order } = await supabase
+        .from("orders")
+        .select("store_id, stores!inner(owner_id)")
+        .eq("id", orderId)
+        .single();
+
+    if (!order || (order.stores as any).owner_id !== user.id) {
+        return { error: "Accès refusé ou commande introuvable" };
+    }
 
     const { error } = await supabase
         .from("orders")

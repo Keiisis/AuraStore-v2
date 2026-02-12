@@ -22,14 +22,21 @@ import { getAdminMessages, sendAdminMessage, markMessagesAsRead } from "@/lib/ac
 import { toast } from "sonner";
 
 interface AuraAssistantProps {
-    storeId: string;
+    stores: any[]; // Using any to avoid strict type issues with Join, ideally Store[]
     context?: "admin" | "seller" | "customer";
     userRole?: string;
 }
 
-export function AuraOmniVoice({ storeId, context: initialContext, userRole }: AuraAssistantProps) {
+export function AuraOmniVoice({ stores, context: initialContext, userRole }: AuraAssistantProps) {
     const supabase = createClient();
     const pathname = usePathname();
+
+    // Smart Context Detection
+    const pathSegments = pathname.split("/").filter(Boolean);
+    const storeSlug = pathSegments.length >= 2 && pathSegments[0] === "dashboard" ? pathSegments[1] : null;
+    const activeStore = stores.find(s => s.slug === storeSlug) || stores[0];
+    const storeId = activeStore?.id;
+
     const context = (userRole === 'admin' ? 'admin' : null) || initialContext || (
         pathname.startsWith("/admin") ? "admin" :
             pathname.startsWith("/dashboard") ? "seller" : "customer"

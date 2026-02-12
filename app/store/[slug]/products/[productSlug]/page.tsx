@@ -17,19 +17,13 @@ interface ProductPageProps {
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-    const supabase = createClient();
     const headersList = headers();
     const isSubdomain = headersList.get("x-store-slug") === params.slug;
 
-    // Fetch store by slug
-    const { data: store, error: storeError } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("slug", params.slug)
-        .eq("is_active", true)
-        .single();
+    // Fetch store by slug using cached action
+    const store = await getStoreBySlug(params.slug);
 
-    if (storeError || !store) {
+    if (!store || !store.is_active) {
         notFound();
     }
 
@@ -46,8 +40,33 @@ export default async function ProductPage({ params }: ProductPageProps) {
     // Get theme config (with fallback to default)
     const themeConfig: ThemeConfig = store.theme_config || DEFAULT_THEME;
 
+    // JSON-LD for Google Rich Snippets
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": product.name,
+        "image": product.images || [],
+        "description": product.description,
+        "sku": product.id,
+        "offers": {
+            "@type": "Offer",
+            "url": `${process.env.NEXT_PUBLIC_APP_URL}/store/${params.slug}/products/${params.productSlug}`,
+            "priceCurrency": "XOF",
+            "price": product.price,
+            "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            "seller": {
+                "@type": "Organization",
+                "name": store.name
+            }
+        }
+    };
+
     return (
         <ThemeProvider initialTheme={themeConfig}>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
             <StorefrontWrapper store={store} products={[]}>
                 <ProductViewer product={product} store={store} />
 
