@@ -7,6 +7,26 @@ import { useRouter } from "next/navigation";
 export default function NotFound() {
     const router = useRouter();
 
+    const handleBack = () => {
+        // check if we have history or a referrer from our own site
+        const hasReferrer = typeof document !== 'undefined' && document.referrer && document.referrer.includes(window.location.host);
+
+        if (hasReferrer) {
+            router.back();
+        } else {
+            // Fallback: If we're in a store route, go to store home, otherwise global home
+            if (typeof window !== 'undefined') {
+                const parts = window.location.pathname.split('/');
+                const storeIndex = parts.indexOf('store');
+                if (storeIndex !== -1 && parts[storeIndex + 1]) {
+                    router.push(`/store/${parts[storeIndex + 1]}`);
+                } else {
+                    router.push("/");
+                }
+            }
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-4 text-center relative overflow-hidden">
             {/* Background Effects */}
@@ -30,7 +50,7 @@ export default function NotFound() {
 
                 <div className="pt-4 w-full space-y-3">
                     <button
-                        onClick={() => router.back()}
+                        onClick={handleBack}
                         className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
                         <ArrowLeft className="w-4 h-4" />
