@@ -17,10 +17,17 @@ export default async function DashboardLayout({
         redirect("/login");
     }
 
-    const [{ data: profile }, { data: stores }] = await Promise.all([
-        supabase.from("profiles").select("role").eq("id", user.id).single(),
-        supabase.from("stores").select("*").eq("owner_id", user.id)
-    ]);
+    // Force non-cached query for profile check
+    const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle(); // Use maybeSingle to avoid 406 error throw
+
+    const { data: stores } = await supabase
+        .from("stores")
+        .select("*")
+        .eq("owner_id", user.id);
 
     if (!profile) {
         // DIAGNOSTIC MODE: Instead of redirecting, show error to confirm if it's a profile issue
