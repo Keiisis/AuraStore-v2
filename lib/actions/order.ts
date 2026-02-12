@@ -56,3 +56,28 @@ export async function updateOrderStatus(orderId: string, status: "pending" | "co
     revalidatePath("/dashboard/[slug]/orders", "page");
     return { success: true };
 }
+export async function getOrderBySessionId(sessionId: string) {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+        .from("orders")
+        .select(`
+            *,
+            stores (
+                name,
+                logo_url,
+                address,
+                phone,
+                email
+            )
+        `)
+        .ilike("notes", `%${sessionId}%`)
+        .single();
+
+    if (error) {
+        console.error("Error fetching order by session id:", error);
+        return { error: "Failed to fetch order details" };
+    }
+
+    return { order: data };
+}
