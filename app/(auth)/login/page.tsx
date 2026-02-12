@@ -26,10 +26,8 @@ export default function LoginPage() {
 
         try {
             if (isLogin) {
-                const res = await signIn({ email, password });
-                if (res.error) throw new Error(res.error);
-                router.push("/dashboard");
-                router.refresh();
+                await signIn({ email, password });
+                // The server action redirects on success, so no code here will run
             } else {
                 const res = await signUp({ email, password });
                 if (res.error) throw new Error(res.error);

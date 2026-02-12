@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 const authSchema = z.object({
     email: z.string().email(),
@@ -21,8 +22,8 @@ export async function signIn(formData: z.infer<typeof authSchema>) {
         return { error: error.message };
     }
 
-    revalidatePath("/dashboard");
-    return { success: true };
+    revalidatePath("/", "layout");
+    redirect("/dashboard");
 }
 
 export async function signUp(formData: z.infer<typeof authSchema>) {
