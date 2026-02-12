@@ -28,35 +28,23 @@ export async function GET(request: Request) {
             { auth: { persistSession: false } }
         );
 
-        // Fetch last 5 orders globally
-        const { data: recentOrders, error: listError } = await supabaseAdmin
-            .from("orders")
-            .select("id, customer_name, total, provider_order_id, created_at")
-            .order("created_at", { ascending: false })
-            .limit(5);
-
-        // specific search
-        const { data: exactMatch } = await supabaseAdmin
-            .from("orders")
-            .select("id")
-            .eq("provider_order_id", sessionId)
-            .maybeSingle();
+        // TEST RPC
+        const { data: rpcResult, error: rpcError } = await supabaseAdmin
+            .rpc('get_order_by_provider_id', { p_provider_id: sessionId });
 
         return NextResponse.json({
-            status: "deep_diagnostic",
+            status: "rpc_diagnostic",
             timestamp: new Date().toISOString(),
             env: {
                 hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-                urlPrefix: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 15),
                 hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-                keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10)
             },
-            search: {
-                targetId: sessionId,
-                foundExact: !!exactMatch,
+            rpc: {
+                success: !!rpcResult,
+                data: rpcResult,
+                error: rpcError
             },
-            recentOrders: recentOrders || [],
-            listError: listError?.message
+            searchID: sessionId
         });
     } catch (e: any) {
         return NextResponse.json({
