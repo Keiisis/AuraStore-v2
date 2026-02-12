@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { OrderNotificationListener } from "@/components/dashboard/order-notification-listener";
@@ -17,14 +18,29 @@ export default async function DashboardLayout({
         redirect("/login");
     }
 
-    // Force non-cached query for profile check
-    const { data: profile } = await supabase
+    // ------------------------------------------------------------------
+    // CRITICAL: Use Admin Client to Bypass RLS for Profile Check
+    // If Auth is valid, we trust the ID. We don't want RLS blocking the UI.
+    // ------------------------------------------------------------------
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+            },
+        }
+    );
+
+    // Force non-cached query for profile check using Admin Client
+    const { data: profile } = await supabaseAdmin
         .from("profiles")
         .select("role")
         .eq("id", user.id)
-        .maybeSingle(); // Use maybeSingle to avoid 406 error throw
+        .maybeSingle();
 
-    const { data: stores } = await supabase
+    const { data: stores } = await supabaseAdmin
         .from("stores")
         .select("*")
         .eq("owner_id", user.id);
