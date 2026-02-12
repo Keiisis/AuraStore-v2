@@ -1,22 +1,35 @@
 import { ShoppingCart, Package, Search, Filter } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import { OrderTableClient } from "@/components/dashboard/order-table-client";
 
 export default async function OrdersPage({ params }: { params: { slug: string } }) {
     const supabase = createClient();
 
-    // Fetch store
-    const { data: store } = await supabase
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    // Use Admin Client
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false } }
+    );
+
+    // Fetch store via Admin
+    const { data: store } = await supabaseAdmin
         .from("stores")
         .select("id, name")
         .eq("slug", params.slug)
-        .single();
+        .eq("owner_id", user.id)
+        .maybeSingle();
 
     if (!store) return notFound();
 
-    // Fetch orders
-    const { data: orders } = await supabase
+    // Fetch orders via Admin
+    const { data: orders } = await supabaseAdmin
         .from("orders")
         .select("*")
         .eq("store_id", store.id)
@@ -63,7 +76,7 @@ export default async function OrdersPage({ params }: { params: { slug: string } 
                         </div>
                     </div>
                 ) : (
-                    <OrderTableClient orders={orders} storeSlug={params.slug} storeName={store.name} />
+                    <OrderTableClient orders={orders || []} storeSlug={params.slug} storeName={store.name} />
                 )}
 
                 {/* Table Footer */}

@@ -235,8 +235,11 @@ export const getStoreProducts = unstable_cache(
 
         return products;
     },
-    ["store-products"],
-    { revalidate: 3600, tags: ["products"] }
+    ["store-products", storeId],
+    {
+        revalidate: 3600,
+        tags: ["products", `store-${storeId}`]
+    }
 );
 
 // Generate slug from name

@@ -1,5 +1,6 @@
 import { BarChart3, TrendingUp, Users, DollarSign } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import { formatPrice, CurrencyCode } from "@/lib/currency-engine";
 import { AiBusinessPulse } from "@/components/dashboard/ai-business-pulse";
@@ -9,12 +10,24 @@ import { AiAcquisitionAdvice } from "@/components/dashboard/ai-acquisition-advic
 export default async function AnalyticsPage({ params }: { params: { slug: string } }) {
     const supabase = createClient();
 
-    // Fetch store
-    const { data: store } = await supabase
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    // Use Admin Client to bypass RLS
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false } }
+    );
+
+    // Fetch store via Admin
+    const { data: store } = await supabaseAdmin
         .from("stores")
         .select("*")
         .eq("slug", params.slug)
-        .single();
+        .eq("owner_id", user.id)
+        .maybeSingle();
 
     if (!store) return notFound();
 
@@ -27,7 +40,7 @@ export default async function AnalyticsPage({ params }: { params: { slug: string
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: allOrders } = await supabase
+    const { data: allOrders } = await supabaseAdmin
         .from("orders")
         .select("*")
         .eq("store_id", store.id)

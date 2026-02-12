@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import { ThemeEditor } from "@/components/dashboard/theme-editor";
 import { DEFAULT_THEME } from "@/lib/theme-engine/types";
@@ -17,20 +18,27 @@ export default async function EditorPage({ params }: EditorPageProps) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    // Get store details
-    const { data: store } = await supabase
+    // Use Admin Client
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false } }
+    );
+
+    // Get store details via Admin
+    const { data: store } = await supabaseAdmin
         .from("stores")
         .select("id, name, theme_config")
         .eq("slug", slug)
         .eq("owner_id", user.id)
-        .single();
+        .maybeSingle();
 
     if (!store) {
         notFound();
     }
 
-    // Get store products
-    const { data: products } = await supabase
+    // Get store products via Admin
+    const { data: products } = await supabaseAdmin
         .from("products")
         .select("*")
         .eq("store_id", store.id)

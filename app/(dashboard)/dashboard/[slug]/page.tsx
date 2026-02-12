@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import { Package, ShoppingCart, DollarSign, TrendingUp, ArrowUpRight, Plus, Globe, Palette, Users } from "lucide-react";
 import Link from "next/link";
@@ -20,13 +21,20 @@ export default async function StoreDashboardPage({ params }: StoreDashboardPageP
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
+    // Use Admin Client to bypass RLS
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false } }
+    );
+
     // Get store details
-    const { data: store, error } = await supabase
+    const { data: store, error } = await supabaseAdmin
         .from("stores")
         .select("*")
         .eq("slug", slug)
         .eq("owner_id", user.id)
-        .single();
+        .maybeSingle();
 
     if (error || !store) {
         notFound();
@@ -36,7 +44,7 @@ export default async function StoreDashboardPage({ params }: StoreDashboardPageP
     const storeCurrency = (store.payment_config as any)?.currency || "XOF" as CurrencyCode;
 
     // Get product count for this store
-    const { count: productCount } = await supabase
+    const { count: productCount } = await supabaseAdmin
         .from("products")
         .select("*", { count: "exact", head: true })
         .eq("store_id", store.id);
@@ -47,7 +55,7 @@ export default async function StoreDashboardPage({ params }: StoreDashboardPageP
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: salesDataData } = await supabase
+    const { data: salesDataData } = await supabaseAdmin
         .from("orders")
         .select("total, created_at, status")
         .eq("store_id", store.id)
@@ -96,7 +104,7 @@ export default async function StoreDashboardPage({ params }: StoreDashboardPageP
     });
 
     // Get recent products
-    const { data: recentProducts } = await supabase
+    const { data: recentProducts } = await supabaseAdmin
         .from("products")
         .select("*")
         .eq("store_id", store.id)
