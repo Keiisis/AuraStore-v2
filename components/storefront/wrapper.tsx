@@ -25,7 +25,7 @@ registerAllBlocks();
 export function StorefrontWrapper({ store, products, children }: StorefrontWrapperProps) {
     return (
         <CurrencyProvider>
-            <CartProvider>
+            <CartProvider storeId={store.id}>
                 <div className="min-h-screen flex flex-col">
                     <StorefrontHeader store={store} />
                     <CartDrawer store={store} />

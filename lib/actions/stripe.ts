@@ -54,27 +54,33 @@ export async function createStripeCheckoutSession({
         // 3. SECURE PRICE VERIFICATION (Anti-Tampering)
         const productIds = items.map(item => item.id).filter(id => id);
 
-        const { data: dbProducts } = await supabaseAdmin
-            .from("products")
-            .select("id, price, name")
-            .in("id", productIds)
-            .eq("store_id", storeId);
+        if (productIds.length === 0) {
+            return { error: "Erreur de sécurité: Aucun ID de produit fourni." };
+        }
 
-        const dbProductMap = new Map(dbProducts?.map(p => [p.id, p]) || []);
+        const { data: dbProducts, error: dbError } = await supabaseAdmin
+            .from("products")
+            .select("id, price, name, store_id")
+            .in("id", productIds);
+
+        if (dbError) {
+            console.error("DB Error fetching products:", dbError);
+            return { error: "Erreur lors de la vérification des produits." };
+        }
+
+        // Check if products belong to the correct store
+        const validDbProducts = dbProducts?.filter(p => p.store_id === storeId) || [];
+        const dbProductMap = new Map(validDbProducts.map(p => [p.id, p]));
 
         const lineItems = items.map((item) => {
-            // TRUSTED SOURCE: Get price from DB, fallback to 0 if not found (security safety)
             const dbProduct = dbProductMap.get(item.id);
             if (!dbProduct) {
-                console.warn(`SECURITY ALERT: Product ${item.id} not found in DB or store mismatch. Skipping.`);
+                console.warn(`SECURITY ALERT: Product ${item.id} not found in store ${storeId}.`);
                 return null;
             }
 
             const itemName = dbProduct.name || item.name || "Article Aura";
-            const trustedPrice = Number(dbProduct.price); // Use DB price, ignore client price
-
-            // Image handling: Stripe requires valid URLs
-            const images = item.image && item.image.startsWith("http") ? [item.image] : [];
+            const trustedPrice = Number(dbProduct.price);
 
             // Amount handling
             let unitAmount = Math.round(trustedPrice);
@@ -83,6 +89,9 @@ export async function createStripeCheckoutSession({
             if (!zeroDecimalCurrencies.includes(currency.toLowerCase())) {
                 unitAmount = Math.round(trustedPrice * 100);
             }
+
+            // Image handling
+            const images = item.image && item.image.startsWith("http") ? [item.image] : [];
 
             return {
                 price_data: {
@@ -96,10 +105,14 @@ export async function createStripeCheckoutSession({
                 },
                 quantity: item.quantity || 1,
             };
-        }).filter(item => item !== null); // Filter out hacked/invalid items
+        }).filter(item => item !== null);
 
         if (lineItems.length === 0) {
-            return { error: "Erreur de sécurité: Aucun produit valide identifié." };
+            const foundCount = dbProducts?.length || 0;
+            const storeMatchedCount = validDbProducts.length;
+            return {
+                error: `Erreur de sécurité: Aucun produit valide identifié (Trouvés: ${foundCount}, Match Boutique: ${storeMatchedCount}). Vérifiez que votre panier appartient bien à cette boutique.`
+            };
         }
 
         // 4. Create Session

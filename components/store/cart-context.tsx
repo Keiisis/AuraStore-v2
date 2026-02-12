@@ -28,31 +28,47 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export function CartProvider({ children }: { children: ReactNode }) {
+interface CartProviderProps {
+    children: ReactNode;
+    storeId: string;
+}
+
+export function CartProvider({ children, storeId }: CartProviderProps) {
     const [items, setItems] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
 
+    const storageKey = `aurastore-cart-${storeId}`;
+
     // Persist cart to localStorage
     useEffect(() => {
         setIsMounted(true);
-        const storedCart = localStorage.getItem("aurastore-cart");
+        const storedCart = localStorage.getItem(storageKey);
         if (storedCart) {
             try {
-                setItems(JSON.parse(storedCart));
+                const parsedItems = JSON.parse(storedCart);
+                // Security: Filter out items that don't belong to this store (if any leaked in)
+                const validItems = parsedItems.filter((item: CartItem) => item.product.store_id === storeId);
+                setItems(validItems);
             } catch (e) {
                 console.error("Failed to parse cart", e);
             }
         }
-    }, []);
+    }, [storageKey, storeId]);
 
     useEffect(() => {
         if (isMounted) {
-            localStorage.setItem("aurastore-cart", JSON.stringify(items));
+            localStorage.setItem(storageKey, JSON.stringify(items));
         }
-    }, [items, isMounted]);
+    }, [items, isMounted, storageKey]);
 
     const addToCart = (product: Product, quantity: number, color: string | null, size: string | null) => {
+        // Double check store mismatch before adding
+        if (product.store_id !== storeId) {
+            console.error("Attempted to add product from different store");
+            return;
+        }
+
         const itemId = `${product.id}-${color || 'default'}-${size || 'default'}`;
 
         setItems((currentItems) => {
