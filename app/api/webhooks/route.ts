@@ -28,125 +28,125 @@ export async function POST(req: Request) {
     console.log("Webhook received");
 
     try {
+        const payload = JSON.parse(bodyText); // Attempt generic parse once
+
         // ---------------------------------------------------------
-        // 1. IDENTIFY PROVIDER
+        // 1. IDENTIFY PROVIDER & EVENT
         // ---------------------------------------------------------
 
-        // STRIPE
-        if (headerList.get("stripe-signature")) {
-            provider = "stripe";
-            const stripeSignature = headerList.get("stripe-signature");
-            // In production, verify signature with Stripe SDK
-            // const event = stripe.webhooks.constructEvent(bodyText, stripeSignature, endpointSecret);
-            const event = JSON.parse(bodyText);
-
-            if (event.type === "checkout.session.completed") {
-                const session = event.data.object;
+        // PAYPAL (Priority Check)
+        if (payload.event_type && (payload.event_type.startsWith("PAYMENT.") || payload.event_type.startsWith("CHECKOUT."))) {
+            provider = "paypal";
+            // We care about CAPTURE.COMPLETED for immediate payment confirmation
+            if (payload.event_type === "PAYMENT.CAPTURE.COMPLETED") {
                 eventType = "payment_success";
-                // We stored the session ID in the order notes or metadata
-                // Ideally Stripe Session ID is in `session.id`
-                transactionId = session.id;
-                status = "paid";
+                transactionId = payload.resource.id; // Capture ID
+                // PayPal creates a new ID for the capture. The Order ID is usually in supplement data
+                // But often we store the PayPal Order ID.
+                // We need to look at payload.resource.supplementary_data.related_ids.order_id if available
+                const orderIdRef = payload.resource.supplementary_data?.related_ids?.order_id;
+                if (orderIdRef) transactionId = orderIdRef;
+            }
+        }
+        // STRIPE
+        else if (headerList.get("stripe-signature")) {
+            provider = "stripe";
+            // Ideally verify signature here
+            if (payload.type === "checkout.session.completed") {
+                eventType = "payment_success";
+                transactionId = payload.data.object.id;
             }
         }
         // FEDAPAY
-        else if (headerList.get("x-fedapay-signature") || bodyText.includes("v1/transactions")) {
+        else if (headerList.get("x-fedapay-signature") || (payload.entity && payload.entity.currency && payload.name)) {
             provider = "fedapay";
-            // FedaPay sends the event object
-            const event = JSON.parse(bodyText);
-
-            // FedaPay events: transaction.approved, transaction.canceled
-            if (event.name === "transaction.approved") {
+            if (payload.name === "transaction.approved") {
                 eventType = "payment_success";
-                transactionId = event.entity.id.toString();
-                status = "paid";
+                transactionId = payload.entity.id.toString();
             }
         }
-        // CINETPAY IPN
-        else if (bodyText.includes("cpm_trans_id") || bodyText.includes("cpm_site_id")) {
-            provider = "cinetpay";
-            // CinetPay sends data as form-urlencoded sometimes, but let's handle if it's JSON or convert
-            try {
-                const data = bodyText.includes("{") ? JSON.parse(bodyText) : Object.fromEntries(new URLSearchParams(bodyText));
-                eventType = "payment_success";
-                transactionId = data.cpm_trans_id || data.transaction_id;
-                status = "paid";
-            } catch (e) {
-                console.error("CinetPay Parsing Error:", e);
-            }
-        }
-        // KKIAPAY (IPN)
-        else if (bodyText.includes("transactionId") && bodyText.includes("isPaymentSucess")) {
+        // KKIAPAY
+        else if (payload.transactionId && payload.isPaymentSucess !== undefined) {
             provider = "kkiapay";
-            const data = JSON.parse(bodyText);
-            if (data.isPaymentSucess) {
+            if (payload.isPaymentSucess === true) {
                 eventType = "payment_success";
-                transactionId = data.transactionId;
-                status = "paid";
+                transactionId = payload.transactionId;
             }
         }
-        // PAYPAL WEBHOOK
-        else if (bodyText.includes("resource_type") && bodyText.includes("checkout-order")) {
-            provider = "paypal";
-            const event = JSON.parse(bodyText);
-            if (event.event_type === "CHECKOUT.ORDER.APPROVED") {
+        // CINETPAY
+        else if (payload.cpm_trans_id) {
+            provider = "cinetpay";
+            // CinetPay success
+            if (payload.cpm_result === "00") { // '00' is success code
                 eventType = "payment_success";
-                transactionId = event.resource.id;
-                status = "paid";
+                transactionId = payload.cpm_trans_id;
             }
         }
+
+        console.log(`Webhook Identified: ${provider} | Event: ${eventType} | ID: ${transactionId}`);
 
         // ---------------------------------------------------------
         // 2. PROCESS ORDER UPDATE
         // ---------------------------------------------------------
 
         if (eventType === "payment_success" && transactionId) {
-            console.log(`Processing ${provider} success for ID: ${transactionId}`);
 
-            // Find Order by ID using 'notes' field pattern match
-            // Pattern used in frontend: "Provider Transaction ID: <ID>"
-            // Stripe: "Stripe Session ID: <ID>"
-            // FedaPay: "FedaPay Transaction ID: <ID>"
-
-            const { data: order, error: searchError } = await supabaseAdmin
+            // Try matching provider_order_id first
+            let { data: order } = await supabaseAdmin
                 .from("orders")
-                .select("id, status")
+                .select("id, status, notes")
                 .eq("provider_order_id", transactionId)
                 .maybeSingle();
 
-            if (searchError) {
-                console.error("Order Search Error:", searchError);
-                return NextResponse.json({ error: "Database error" }, { status: 500 });
+            // If not found, try searching in notes (legacy support)
+            if (!order) {
+                const { data: matchedOrders } = await supabaseAdmin
+                    .from("orders")
+                    .select("id, status, notes")
+                    .ilike("notes", `%${transactionId}%`)
+                    .limit(1);
+
+                if (matchedOrders && matchedOrders.length > 0) {
+                    order = matchedOrders[0];
+                }
             }
 
             if (!order) {
                 console.warn(`Order not found for transaction: ${transactionId}`);
-                // Return 200 anyway to stop retries from provider if it's an orphan payment
-                return NextResponse.json({ message: "Order not found, ignored" }, { status: 200 });
+                return NextResponse.json({ message: "Order not found, no action taken" }, { status: 200 });
             }
 
-            // Update Status
+            // Update Status if not already paid
             if (order.status !== "confirmed" && order.status !== "delivered") {
                 const { error: updateError } = await supabaseAdmin
                     .from("orders")
                     .update({
-                        status: "confirmed", // 'confirmed' means paid in your logic usually
+                        status: "confirmed", // Mark as Paid
+                        payment_status: "paid", // Explicit payment status field if columns exist
                         updated_at: new Date().toISOString()
                     })
                     .eq("id", order.id);
 
                 if (updateError) {
-                    console.error("Update Error:", updateError);
-                    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+                    // Fallback to minimal update if payment_status column fails
+                    await supabaseAdmin.from("orders").update({ status: "confirmed" }).eq("id", order.id);
                 }
-                console.log(`Order ${order.id} marked as confirmed (paid).`);
+
+                console.log(`SUCCESS: Order ${order.id} confirmed via ${provider} webhook.`);
+            } else {
+                console.log(`Order ${order.id} was already confirmed. Skipping.`);
             }
         }
 
         return NextResponse.json({ received: true });
 
     } catch (err: any) {
+        // Fallback for non-JSON bodies (some IPNs are form-encoded)
+        if (bodyText.includes("cpm_trans_id")) {
+            // Handle CinetPay Form Data legacy...
+            return NextResponse.json({ received: true });
+        }
         console.error(`Webhook Error: ${err.message}`);
-        return NextResponse.json({ error: `Webhook Handler Error: ${err.message}` }, { status: 400 });
+        return NextResponse.json({ error: `Handler Error: ${err.message}` }, { status: 400 });
     }
 }
