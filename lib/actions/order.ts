@@ -235,10 +235,10 @@ export async function getOrderBySessionId(sessionId: string) {
                 .maybeSingle();
 
             if (latestData) {
-                // Check if it's recent (less than 15 mins old)
+                // Check if it's recent (less than 24 hours old for debugging)
                 const orderTime = new Date(latestData.created_at).getTime();
                 const now = new Date().getTime();
-                if ((now - orderTime) < 15 * 60 * 1000) {
+                if ((now - orderTime) < 24 * 60 * 60 * 1000) {
                     console.log(`[getOrderBySessionId] Returning latest order (fallback)`);
                     return { order: latestData };
                 }
