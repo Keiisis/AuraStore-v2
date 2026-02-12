@@ -26,6 +26,7 @@ import {
     Magnet,
     Sparkles,
     Crown,
+    ExternalLink,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<string, any> = {
@@ -128,6 +129,21 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
                                 </span>
                             </Link>
                         </div>
+
+                        {/* Quick access to live store */}
+                        {storeSlug && (
+                            <a
+                                href={`/store/${storeSlug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all group mt-2"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5 text-primary" />
+                                <span className="text-[11px] font-black text-primary uppercase tracking-wider">
+                                    Voir la boutique
+                                </span>
+                            </a>
+                        )}
                     </div>
 
                     {/* Navigation */}
