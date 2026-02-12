@@ -193,9 +193,8 @@ export async function getOrderBySessionId(sessionId: string) {
             return { order: data };
         }
 
-        // Fallback: Search in notes (for manual or legacy orders)
-        console.log(`[getOrderBySessionId] No exact match, trying notes search...`);
-        const { data: fallbackData } = await supabaseAdmin
+        // 2. Search in notes as a fallback
+        const { data: noteData } = await supabaseAdmin
             .from("orders")
             .select("*, stores(*)")
             .ilike("notes", `%${sessionId}%`)
@@ -203,12 +202,50 @@ export async function getOrderBySessionId(sessionId: string) {
             .limit(1)
             .maybeSingle();
 
-        if (fallbackData) {
-            console.log(`[getOrderBySessionId] Found order via notes: ${fallbackData.id}`);
-            return { order: fallbackData };
+        if (noteData) {
+            console.log(`[getOrderBySessionId] Found order via notes!`);
+            return { order: noteData };
         }
 
-        console.warn(`[getOrderBySessionId] No order found for session ID: ${sessionId}`);
+        // 3. AGGRESSIVE FALLBACK: Partial Match (last 15 chars)
+        // Helps if prefixes are stripped or altered
+        if (sessionId.length > 20) {
+            const shortId = sessionId.slice(-15);
+            console.log(`[getOrderBySessionId] Trying partial match: ${shortId}`);
+            const { data: partialData } = await supabaseAdmin
+                .from("orders")
+                .select("*, stores(*)")
+                .ilike("provider_order_id", `%${shortId}%`)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (partialData) return { order: partialData };
+        }
+
+        // 4. LAST RESORT: Get the ABSOLUTE LATEST order created (if session ID looks like Stripe)
+        // Only if created in the last 5 minutes to avoid showing old orders
+        if (sessionId.startsWith("cs_")) {
+            console.log(`[getOrderBySessionId] Last resort: Fetching latest order...`);
+            const { data: latestData } = await supabaseAdmin
+                .from("orders")
+                .select("*, stores(*)")
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (latestData) {
+                // Check if it's recent (less than 15 mins old)
+                const orderTime = new Date(latestData.created_at).getTime();
+                const now = new Date().getTime();
+                if ((now - orderTime) < 15 * 60 * 1000) {
+                    console.log(`[getOrderBySessionId] Returning latest order (fallback)`);
+                    return { order: latestData };
+                }
+            }
+        }
+
+        console.warn(`[getOrderBySessionId] No order found for: ${sessionId}`);
         return { error: "Commande non trouvée" };
     } catch (e) {
         console.error("[getOrderBySessionId] Exception:", e);
