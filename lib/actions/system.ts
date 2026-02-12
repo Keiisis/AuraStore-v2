@@ -100,3 +100,23 @@ export async function updateSystemPaymentConfig(id: string, configData: any) {
     revalidatePath("/admin/settings");
     return { success: true };
 }
+
+export async function updateSystemConfig(key: string, value: any) {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return { error: "Non autorisé" };
+
+    const { error } = await supabase
+        .from("system_configs")
+        .upsert({
+            key,
+            value,
+            updated_at: new Date().toISOString()
+        });
+
+    if (error) return { error: error.message };
+
+    revalidatePath("/admin/settings");
+    return { success: true };
+}

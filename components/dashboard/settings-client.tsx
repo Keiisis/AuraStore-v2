@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Store as StoreIcon, Globe, Palette, Shield, Trash2, Phone, Save, Loader2, Image, Cloud, Lock, CreditCard as CreditCardIcon, Upload, CheckCircle2 } from "lucide-react";
+import { Store as StoreIcon, Globe, Palette, Shield, Trash2, Phone, Save, Loader2, Image, Cloud, Lock, CreditCard as CreditCardIcon, Upload, CheckCircle2, Sparkles } from "lucide-react";
 import { updateStore, deleteStore } from "@/lib/actions/store";
 import { uploadImage } from "@/lib/actions/storage";
 import type { Store } from "@/lib/supabase/types";

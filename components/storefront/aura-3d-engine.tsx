@@ -61,7 +61,8 @@ function Model({ url }: { url: string }) {
 }
 
 function AuraHologram({ productImage, productName }: { productImage?: string, productName?: string }) {
-    const texture = productImage ? useTexture(productImage) : null;
+    const fallbackTexture = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2070";
+    const texture = useTexture(productImage || fallbackTexture);
     const scannerRef = useRef<THREE.Mesh>(null);
     const plateRef = useRef<THREE.Mesh>(null);
 
