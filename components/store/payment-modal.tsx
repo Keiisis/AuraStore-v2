@@ -102,13 +102,22 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
         try {
             // STRIPE PROCESSING
             if (selectedMethod === "stripe") {
+                // Ensure items are properly formatted for Stripe Action
+                const sanitizedItems = items.map(item => ({
+                    name: item.name || item.product?.name || "Article d'exception",
+                    price: Number(item.price || item.product?.price || 0),
+                    image: item.image || (item.product?.images && item.product.images[0]) || "",
+                    quantity: item.quantity || 1,
+                    variant: item.variant || ""
+                }));
+
                 const result = await createStripeCheckoutSession({
                     storeId: store.id,
-                    items,
+                    items: sanitizedItems,
                     currency: typeof currency === 'string' ? currency : (currency as any).code || "xof",
                     customerEmail: customerInfo.email,
-                    successUrl: window.location.href.split('?')[0] + "?payment=success", // Return to current page with success flag
-                    cancelUrl: window.location.href, // Return to current page
+                    successUrl: window.location.href.split('?')[0] + "?payment=success",
+                    cancelUrl: window.location.href,
                 });
 
                 if (result.error) throw new Error(result.error);
