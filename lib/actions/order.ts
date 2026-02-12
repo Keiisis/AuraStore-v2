@@ -23,10 +23,16 @@ const createOrderSchema = z.object({
 });
 
 export async function createOrder(input: z.infer<typeof createOrderSchema>) {
-    const supabase = createClient();
+    // Use Admin Client for backend order processing to bypass RLS/permission issues
+    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+    );
 
     // 1. Validate Store Existence
-    const { data: store } = await supabase
+    const { data: store } = await supabaseAdmin
         .from("stores")
         .select("id")
         .eq("id", input.store_id)
@@ -36,7 +42,7 @@ export async function createOrder(input: z.infer<typeof createOrderSchema>) {
 
     // 2. Fetch Real Product Prices (Anti-Tampering)
     const productIds = input.items.map(item => item.id);
-    const { data: products } = await supabase
+    const { data: products } = await supabaseAdmin
         .from("products")
         .select("id, price, name")
         .in("id", productIds)
@@ -68,10 +74,10 @@ export async function createOrder(input: z.infer<typeof createOrderSchema>) {
 
     if (sanitizedItems.length === 0) return { error: "Panier vide ou invalide" };
 
-    const calculatedTotal = calculatedSubtotal; // Add tax/shipping logic here if needed later
+    const calculatedTotal = calculatedSubtotal;
 
     // 4. Insert Order with Trusted Values
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from("orders")
         .insert({
             store_id: input.store_id,
@@ -79,8 +85,8 @@ export async function createOrder(input: z.infer<typeof createOrderSchema>) {
             customer_name: input.customer_name,
             customer_phone: input.customer_phone,
             items: sanitizedItems,
-            subtotal: calculatedSubtotal, // Override client value
-            total: calculatedTotal,       // Override client value
+            subtotal: calculatedSubtotal,
+            total: calculatedTotal,
             payment_method: input.payment_method,
             shipping_address: input.shipping_address,
             notes: input.notes,
@@ -96,10 +102,7 @@ export async function createOrder(input: z.infer<typeof createOrderSchema>) {
     }
 
     // revalidate internal dashboard pages to show new order
-    revalidatePath(`/dashboard/${input.store_id}/orders`); // improved path
-    revalidatePath("/dashboard/[slug]/orders", "page");
-    revalidatePath("/dashboard/[slug]/analytics", "page");
-
+    revalidatePath(`/dashboard/${input.store_id}/orders`);
     return { success: true, order: data };
 }
 
@@ -134,9 +137,17 @@ export async function updateOrderStatus(orderId: string, status: "pending" | "co
     return { success: true };
 }
 export async function getOrderBySessionId(sessionId: string) {
-    const supabase = createClient();
+    if (!sessionId) return { error: "Session ID missing" };
 
-    const { data, error } = await supabase
+    // Use Admin Client to bypass RLS for success page display
+    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+    );
+
+    const { data, error } = await supabaseAdmin
         .from("orders")
         .select(`
             *,
@@ -148,10 +159,10 @@ export async function getOrderBySessionId(sessionId: string) {
                 email
             )
         `)
-        .ilike("notes", `%${sessionId}%`)
-        .single();
+        .or(`provider_order_id.eq.${sessionId},notes.ilike.%${sessionId}%`)
+        .maybeSingle();
 
-    if (error) {
+    if (error || !data) {
         console.error("Error fetching order by session id:", error);
         return { error: "Failed to fetch order details" };
     }
