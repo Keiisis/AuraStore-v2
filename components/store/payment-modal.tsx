@@ -7,6 +7,8 @@ import { Store } from "@/lib/supabase/types";
 import { useCurrency } from "@/lib/theme-engine/currency-context";
 import { formatPrice } from "@/lib/currency-engine";
 import { toast } from "sonner";
+// import { createOrder } from "@/lib/actions/order"; // Dynamic import used below
+import { createStripeCheckoutSession } from "@/lib/actions/stripe";
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -98,6 +100,25 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
         setIsProcessing(true);
 
         try {
+            // STRIPE PROCESSING
+            if (selectedMethod === "stripe") {
+                const result = await createStripeCheckoutSession({
+                    storeId: store.id,
+                    items,
+                    currency: typeof currency === 'string' ? currency : (currency as any).code || "xof",
+                    customerEmail: customerInfo.email,
+                    successUrl: window.location.href.split('?')[0] + "?payment=success", // Return to current page with success flag
+                    cancelUrl: window.location.href, // Return to current page
+                });
+
+                if (result.error) throw new Error(result.error);
+                if (result.url) {
+                    window.location.href = result.url;
+                    return; // Stop here, redirecting
+                }
+            }
+
+            // OTHER METHODS (Previous Logic / Manual Orders)
             // Import the action
             const { createOrder } = await import("@/lib/actions/order");
 
@@ -116,7 +137,7 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
 
             if (result.error) throw new Error(result.error);
 
-            // Simulate Gateway Processing delay
+            // Simulate Gateway Processing delay for non-redirect methods
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             setIsProcessing(false);
