@@ -33,7 +33,7 @@ export default async function DashboardLayout({
     return (
         <div className="min-h-screen bg-[#08080A]">
             {/* Dashboard Header */}
-            <DashboardHeader user={user} />
+            <DashboardHeader user={user} stores={stores || []} />
             <OrderNotificationListener />
 
             {/* Omni-Voice Assistant (Centralized) */}

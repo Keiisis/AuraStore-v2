@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/lib/theme-engine/context";
 import { StorefrontWrapper } from "@/components/storefront/wrapper";
 import { DEFAULT_THEME, ThemeConfig } from "@/lib/theme-engine/types";
 import { getProductBySlug, getSimilarProducts } from "@/lib/actions/product";
+import { getStoreBySlug } from "@/lib/actions/store";
 import { ProductViewer } from "@/components/storefront/product-viewer";
 import { ProductGrid } from "@/components/blocks/product-grid";
 import { headers } from "next/headers";
@@ -74,25 +75,30 @@ export default async function ProductPage({ params }: ProductPageProps) {
     );
 }
 
-// Generate metadata for SEO & Social Sharing (WhatsApp Magic)
+// Generate metadata for SEO & Social Sharing
 export async function generateMetadata({ params }: ProductPageProps) {
-    const product = await getProductBySlug(params.slug, params.productSlug);
+    const [product, store] = await Promise.all([
+        getProductBySlug(params.slug, params.productSlug),
+        getStoreBySlug(params.slug)
+    ]);
 
-    if (!product) {
+    if (!product || !store) {
         return {
-            title: "Product Not Found",
+            title: "Produit Introuvable",
         };
     }
 
     const priceText = `${product.price.toLocaleString('fr-FR')} FCFA`;
-    const promoBadge = product.compare_at_price ? ` 🔥 OFFRE SPÉCIALE` : "";
+    const promoBadge = product.compare_at_price ? ` 🔥 OFFRE` : "";
+    const storeName = store.name || "Aura Store";
 
     return {
-        title: `${product.name} - ${priceText}${promoBadge}`,
-        description: `🚀 Exclusivité Aura : ${product.name} à ${priceText}. Découvrez une expérience e-commerce immersive. Commandez maintenant !`,
+        title: `${product.name} - ${priceText} | ${storeName}`,
+        description: product.description?.slice(0, 160) || `Découvrez ${product.name} sur la boutique ${storeName}. Disponible maintenant !`,
         openGraph: {
-            title: `${product.name} | ${priceText}${promoBadge}`,
-            description: product.description || `Pépite disponible maintenant sur AuraStore.`,
+            title: `${product.name} - ${priceText}${promoBadge}`,
+            description: `En vente sur ${storeName}. Cliquez pour voir les détails.`,
+            siteName: storeName,
             images: product.images?.[0] ? [
                 {
                     url: product.images[0],
@@ -105,8 +111,8 @@ export async function generateMetadata({ params }: ProductPageProps) {
         },
         twitter: {
             card: 'summary_large_image',
-            title: product.name,
-            description: `Découvrez cet article sur AuraStore !`,
+            title: `${product.name} | ${storeName}`,
+            description: `Disponible maintenant : ${product.name}`,
             images: product.images?.[0] ? [product.images[0]] : [],
         },
     };

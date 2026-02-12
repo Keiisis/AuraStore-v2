@@ -231,7 +231,7 @@ export interface Database {
                     subtotal?: number;
                     total?: number;
                     status?: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
-                    payment_method?: "whatsapp" | "stripe" | "cash";
+                    payment_method?: "whatsapp" | "stripe" | "cash" | "paypal" | "flutterwave" | "fedapay" | "kkiapay";
                     shipping_address?: Json | null;
                     notes?: string | null;
                     created_at?: string;
@@ -290,6 +290,189 @@ export interface Database {
                     }
                 ];
             };
+            subscriptions: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    plan_id: string;
+                    status: "active" | "trial" | "past_due" | "cancelled" | "expired";
+                    current_period_start: string;
+                    current_period_end: string;
+                    cancel_at_period_end: boolean;
+                    stripe_subscription_id: string | null;
+                    created_at: string;
+                    updated_at: string | null;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    plan_id: string;
+                    status?: "active" | "trial" | "past_due" | "cancelled" | "expired";
+                    current_period_start?: string;
+                    current_period_end?: string;
+                    cancel_at_period_end?: boolean;
+                    stripe_subscription_id?: string | null;
+                    created_at?: string;
+                    updated_at?: string | null;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    plan_id?: string;
+                    status?: "active" | "trial" | "past_due" | "cancelled" | "expired";
+                    current_period_start?: string;
+                    current_period_end?: string;
+                    cancel_at_period_end?: boolean;
+                    stripe_subscription_id?: string | null;
+                    created_at?: string;
+                    updated_at?: string | null;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "subscriptions_user_id_fkey";
+                        columns: ["user_id"];
+                        referencedRelation: "profiles";
+                        referencedColumns: ["id"];
+                    },
+                    {
+                        foreignKeyName: "subscriptions_plan_id_fkey";
+                        columns: ["plan_id"];
+                        referencedRelation: "subscription_plans";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            subscription_plans: {
+                Row: {
+                    id: string;
+                    name: string;
+                    slug: string;
+                    description: string | null;
+                    price: number;
+                    currency: string;
+                    interval: "month" | "year";
+                    features: Json;
+                    stripe_price_id: string | null;
+                    is_active: boolean;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    name: string;
+                    slug: string;
+                    description?: string | null;
+                    price: number;
+                    currency?: string;
+                    interval?: "month" | "year";
+                    features?: Json;
+                    stripe_price_id?: string | null;
+                    is_active?: boolean;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    name?: string;
+                    slug?: string;
+                    description?: string | null;
+                    price?: number;
+                    currency?: string;
+                    interval?: "month" | "year";
+                    features?: Json;
+                    stripe_price_id?: string | null;
+                    is_active?: boolean;
+                    created_at?: string;
+                };
+                Relationships: [];
+            };
+            blog_posts: {
+                Row: {
+                    id: string;
+                    store_id: string;
+                    title: string;
+                    slug: string;
+                    content: string;
+                    excerpt: string | null;
+                    cover_image: string | null;
+                    is_published: boolean;
+                    published_at: string | null;
+                    created_at: string;
+                    updated_at: string | null;
+                };
+                Insert: {
+                    id?: string;
+                    store_id: string;
+                    title: string;
+                    slug: string;
+                    content: string;
+                    excerpt?: string | null;
+                    cover_image?: string | null;
+                    is_published?: boolean;
+                    published_at?: string | null;
+                    created_at?: string;
+                    updated_at?: string | null;
+                };
+                Update: {
+                    id?: string;
+                    store_id?: string;
+                    title?: string;
+                    slug?: string;
+                    content?: string;
+                    excerpt?: string | null;
+                    cover_image?: string | null;
+                    is_published?: boolean;
+                    published_at?: string | null;
+                    created_at?: string;
+                    updated_at?: string | null;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "blog_posts_store_id_fkey";
+                        columns: ["store_id"];
+                        referencedRelation: "stores";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
+            messages: {
+                Row: {
+                    id: string;
+                    store_id: string;
+                    customer_name: string;
+                    customer_email: string;
+                    subject: string | null;
+                    content: string;
+                    is_read: boolean;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    store_id: string;
+                    customer_name: string;
+                    customer_email: string;
+                    subject?: string | null;
+                    content: string;
+                    is_read?: boolean;
+                    created_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    store_id?: string;
+                    customer_name?: string;
+                    customer_email?: string;
+                    subject?: string | null;
+                    content?: string;
+                    is_read?: boolean;
+                    created_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "messages_store_id_fkey";
+                        columns: ["store_id"];
+                        referencedRelation: "stores";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
         };
         Views: {
             [_ in never]: never;
@@ -320,6 +503,11 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Store = Database["public"]["Tables"]["stores"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
+export type Subscription = Database["public"]["Tables"]["subscriptions"]["Row"];
+export type SubscriptionPlan = Database["public"]["Tables"]["subscription_plans"]["Row"];
+export type BlogPost = Database["public"]["Tables"]["blog_posts"]["Row"];
+export type Message = Database["public"]["Tables"]["messages"]["Row"];
+export type VtoLead = Database["public"]["Tables"]["vto_leads"]["Row"];
 
 export type InsertProfile = Database["public"]["Tables"]["profiles"]["Insert"];
 export type InsertStore = Database["public"]["Tables"]["stores"]["Insert"];

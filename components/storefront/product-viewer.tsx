@@ -46,7 +46,8 @@ export function ProductViewer({ product, store }: ProductViewerProps) {
         if (selectedSize) variantText.push(`Taille: ${selectedSize}`);
         const variantString = variantText.length > 0 ? ` (${variantText.join(", ")})` : "";
 
-        const message = `Bonjour équipe *${store?.name || "Aura Streetwear"}* 🎩,\n\nJe viens de découvrir cette pièce d'exception : *${product.name}*${variantString}.\n\nSon design m'a captivé. Je souhaiterais confirmer sa disponibilité pour une acquisition immédiate au prix de *${formatPrice(product.price, currency)}*.\n\nDans l'attente de finaliser cette transaction avec vous. ✨\n\n_Origine: Aura Store Experience_`;
+        const currentUrl = window.location.href;
+        const message = `Bonjour équipe *${store?.name || "Aura Streetwear"}* 🎩,\n\nJe suis intéressé par cette pièce : *${product.name}*${variantString}.\n\n🔗 ${currentUrl}\n\nPrix: *${formatPrice(product.price, currency)}*.\nEst-ce disponible pour un achat immédiat ? ✨`;
 
         const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
         window.open(url, "_blank");
