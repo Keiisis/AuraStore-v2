@@ -235,10 +235,10 @@ export const getStoreProducts = unstable_cache(
 
         return products;
     },
-    ["store-products", storeId],
+    ["store-products"],
     {
         revalidate: 3600,
-        tags: ["products", `store-${storeId}`]
+        tags: ["products"]
     }
 );
 
