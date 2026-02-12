@@ -52,7 +52,8 @@ export function DashboardHeader({ user, stores }: DashboardHeaderProps) {
     const storeSlug = isStoreContext ? pathSegments[1] : (stores.length > 0 ? stores[0]?.slug : null);
 
     const currentNavItems = navItems.map(item => {
-        if (!storeSlug || item.href === "/dashboard") return item;
+        const globalPages = ["/dashboard", "/dashboard/subscription", "/dashboard/settings", "/dashboard/new-store"];
+        if (!storeSlug || globalPages.includes(item.href)) return item;
         const subPath = item.href.replace("/dashboard/", "");
         return {
             ...item,

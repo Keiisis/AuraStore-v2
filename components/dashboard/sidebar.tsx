@@ -70,7 +70,11 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
         // Global pages that should NOT be scoped to a store
         const globalPages = ["/dashboard", "/dashboard/subscription", "/dashboard/settings", "/dashboard/new-store"];
 
-        if (!storeSlug || globalPages.includes(item.href)) return item;
+        // If it's a global page, return as is
+        if (globalPages.includes(item.href)) return item;
+
+        // If no store slug, use global base (though most will need a store)
+        if (!storeSlug) return item;
 
         // Convert /dashboard/products to /dashboard/[slug]/products
         const subPath = item.href.replace("/dashboard/", "");
