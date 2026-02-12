@@ -39,7 +39,7 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
             id: "stripe",
             name: "Stripe Precision",
             icon: <CreditCard className="w-6 h-6 text-indigo-400" />,
-            enabled: paymentConfig.stripe_enabled === "true" && !!paymentConfig.stripe_public_key && !!paymentConfig.stripe_secret_key
+            enabled: paymentConfig.stripe_enabled === "true" && !!paymentConfig.stripe_public_key
         },
         {
             id: "paypal",
@@ -51,7 +51,7 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
             id: "cinetpay",
             name: "CinetPay Interlink",
             icon: <Globe className="w-6 h-6 text-orange-400" />,
-            enabled: paymentConfig.cinetpay_enabled === "true" && !!paymentConfig.cinetpay_api_key && !!paymentConfig.cinetpay_site_id
+            enabled: paymentConfig.cinetpay_enabled === "true" && !!paymentConfig.cinetpay_site_id
         },
         {
             id: "fedapay",
@@ -69,13 +69,13 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
             id: "zeyow",
             name: "Zeyow Flow",
             icon: <Smartphone className="w-6 h-6 text-emerald-400" />,
-            enabled: paymentConfig.zeyow_enabled === "true" && !!paymentConfig.zeyow_api_key
+            enabled: paymentConfig.zeyow_enabled === "true"
         },
         {
             id: "moneco",
             name: "Moneco Vault",
             icon: <Wallet className="w-6 h-6 text-purple-400" />,
-            enabled: paymentConfig.moneco_enabled === "true" && !!paymentConfig.moneco_api_key
+            enabled: paymentConfig.moneco_enabled === "true"
         },
         {
             id: "mtn_money",
