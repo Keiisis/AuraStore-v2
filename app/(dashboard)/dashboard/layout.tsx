@@ -23,6 +23,10 @@ export default async function DashboardLayout({
         supabase.from("stores").select("*").eq("owner_id", user.id)
     ]);
 
+    if (!profile) {
+        redirect("/login");
+    }
+
     return (
         <div className="min-h-screen bg-[#08080A]">
             {/* Dashboard Header */}
