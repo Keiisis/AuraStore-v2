@@ -97,7 +97,10 @@ export async function createStripeCheckoutSession({
             },
         });
 
-        return { url: session.url };
+        return {
+            url: session.url,
+            sessionId: session.id
+        };
     } catch (err: any) {
         console.error("Stripe Session Error:", err);
         return { error: `Erreur Stripe: ${err.message}` };

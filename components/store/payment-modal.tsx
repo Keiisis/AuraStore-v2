@@ -121,9 +121,25 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
                 });
 
                 if (result.error) throw new Error(result.error);
+
                 if (result.url) {
+                    // RECORD THE ORDER BEFORE REDIRECTING
+                    const { createOrder } = await import("@/lib/actions/order");
+                    await createOrder({
+                        store_id: store.id,
+                        customer_name: customerInfo.name,
+                        customer_email: customerInfo.email,
+                        customer_phone: customerInfo.phone,
+                        items: sanitizedItems,
+                        subtotal: totalAmount,
+                        total: totalAmount,
+                        payment_method: "stripe",
+                        shipping_address: { address: customerInfo.address },
+                        notes: `Stripe Session ID: ${result.sessionId}`
+                    });
+
                     window.location.href = result.url;
-                    return; // Stop here, redirecting
+                    return;
                 }
             }
 
