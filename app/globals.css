@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 5 5 5;
+        --foreground: 250 250 250;
+        --primary-glow: 254 117 1;
+        --secondary-glow: 180 22 11;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-[#08080A] text-foreground antialiased selection:bg-primary/30;
+    }
+}
+
+@layer components {
+    .glass-card {
+        background: rgba(17, 17, 17, 0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .volcanic-glass {
+        background: linear-gradient(145deg, rgba(25, 15, 10, 0.3), rgba(10, 10, 10, 0.5));
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(254, 117, 1, 0.1);
+        @apply rounded-3xl transition-all duration-500 hover:border-primary/30 hover:bg-primary/[0.02];
+    }
+
+    .lava-glow {
+        background: radial-gradient(circle at center, rgba(254, 117, 1, 0.15) 0%, transparent 70%);
+    }
+
+    .magma-grid {
+        background-image:
+            radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.03) 1px, transparent 0);
+        background-size: 40px 40px;
+    }
+}
+
+@layer utilities {
+    .text-glow {
+        text-shadow: 0 0 30px rgba(254, 117, 1, 0.4);
+    }
+
+    .bg-grid-white {
+        background-size: 40px 40px;
+        background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    }
+
+    .mask-radial {
+        mask-image: radial-gradient(ellipse at center, black, transparent 80%);
+    }
+
+    .perspective-1000 {
+        perspective: 1000px;
+    }
+
+    .preserve-3d {
+        transform-style: preserve-3d;
+    }
+
+    .backface-hidden {
+        backface-visibility: hidden;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(10, 10, 10, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(254, 117, 1, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(254, 117, 1, 0.5);
+}
+
+/* Selection */
+::selection {
+    background: rgba(254, 117, 1, 0.3);
+    color: white;
+}
+
+::-moz-selection {
+    background: rgba(254, 117, 1, 0.3);
+    color: white;
+}
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Focus styles */
+*:focus-visible {
+    outline: 2px solid rgba(254, 117, 1, 0.5);
+    outline-offset: 2px;
+}
+
+/* Loading animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+.animate-spin-slow {
+    animation: spin 8s linear infinite;
+}
+
+/* Blob animation */
+@keyframes blobPulse {
+    0% {
+        transform: scale(1) rotate(0deg);
+    }
+
+    100% {
+        transform: scale(1.1) rotate(5deg);
+    }
+}
+
+.animate-blob-pulse {
+    animation: blobPulse 10s ease-in-out infinite alternate;
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.animate-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* Clashing/Logo Highlight animation */
+@keyframes extraordinary-clash {
+
+    0%,
+    100% {
+        filter: brightness(1) drop-shadow(0 0 5px rgba(254, 117, 1, 0.4));
+        transform: scale(1);
+    }
+
+    50% {
+        filter: brightness(1.8) drop-shadow(0 0 25px rgba(254, 117, 1, 0.8));
+        transform: scale(1.05);
+    }
+}
+
+.animate-extraordinary-clash {
+    animation: extraordinary-clash 3s ease-in-out infinite;
+}

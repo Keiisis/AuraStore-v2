@@ -1,0 +1,49 @@
+{
+    "name": "aurastore-next",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "@radix-ui/react-slot": "^1.0.2",
+        "@react-three/drei": "^9.122.0",
+        "@react-three/fiber": "^8.18.0",
+        "@supabase/ssr": "^0.3.0",
+        "@supabase/supabase-js": "^2.95.3",
+        "@types/canvas-confetti": "^1.9.0",
+        "canvas-confetti": "^1.9.4",
+        "class-variance-authority": "^0.7.0",
+        "clsx": "^2.1.1",
+        "date-fns": "^4.1.0",
+        "framer-motion": "^11.2.10",
+        "groq-sdk": "^0.37.0",
+        "lucide-react": "^0.394.0",
+        "next": "14.2.3",
+        "openai": "^6.21.0",
+        "react": "^18",
+        "react-dom": "^18",
+        "react-markdown": "^10.1.0",
+        "sonner": "^2.0.7",
+        "tailwind-merge": "^2.3.0",
+        "tailwindcss-animate": "^1.0.7",
+        "three": "^0.182.0",
+        "zod": "^3.23.8",
+        "zustand": "^4.5.2"
+    },
+    "devDependencies": {
+        "@types/node": "^20",
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+        "@types/three": "^0.182.0",
+        "autoprefixer": "^10.4.24",
+        "eslint": "^8",
+        "eslint-config-next": "14.2.3",
+        "postcss": "^8",
+        "tailwindcss": "^3.4.1",
+        "typescript": "^5"
+    }
+}
