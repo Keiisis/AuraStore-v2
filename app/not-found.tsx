@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Home } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function NotFound() {
+    const router = useRouter();
+
     return (
         <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-4 text-center relative overflow-hidden">
             {/* Background Effects */}
@@ -23,13 +28,21 @@ export default function NotFound() {
                     Il semble que cette page ait disparu dans le néant digital. Vérifiez l'URL ou retournez en lieu sûr.
                 </p>
 
-                <div className="pt-4 w-full">
-                    <Link
-                        href="/"
+                <div className="pt-4 w-full space-y-3">
+                    <button
+                        onClick={() => router.back()}
                         className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Retour à l'accueil
+                        Retourner en arrière
+                    </button>
+
+                    <Link
+                        href="/"
+                        className="w-full h-12 rounded-2xl bg-white/5 text-white/40 font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-white/10 hover:text-white transition-all border border-white/5"
+                    >
+                        <Home className="w-3.5 h-3.5" />
+                        Aller à l'accueil
                     </Link>
                 </div>
             </div>

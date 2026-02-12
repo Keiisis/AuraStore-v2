@@ -153,7 +153,7 @@ export function ProductTableClient({ products: initialProducts, storeSlug, store
                                         <td className="px-6 py-3 text-right">
                                             <div className="flex justify-end gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
                                                 <Link
-                                                    href={`/store/${storeSlug}/product/${product.slug}`}
+                                                    href={`/store/${storeSlug}/products/${product.slug}`}
                                                     target="_blank"
                                                     className="p-1.5 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all"
                                                     title="Voir"
