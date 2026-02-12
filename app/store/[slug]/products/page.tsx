@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/lib/theme-engine/context";
 import { StorefrontWrapper } from "@/components/storefront/wrapper";
 import { DEFAULT_THEME, ThemeConfig } from "@/lib/theme-engine/types";
 import { ProductGrid } from "@/components/blocks/product-grid";
+import { getStoreBySlug } from "@/lib/actions/store";
 
 interface ProductsPageProps {
     params: {
@@ -17,15 +18,10 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
     const headersList = headers();
     const isSubdomain = headersList.get("x-store-slug") === params.slug;
 
-    // Fetch store by slug
-    const { data: store, error: storeError } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("slug", params.slug)
-        .eq("is_active", true)
-        .single();
+    // Fetch store by slug using cached action
+    const store = await getStoreBySlug(params.slug);
 
-    if (storeError || !store) {
+    if (!store || !store.is_active) {
         notFound();
     }
 
@@ -87,7 +83,7 @@ export async function generateMetadata({ params }: ProductsPageProps) {
         .from("stores")
         .select("name")
         .eq("slug", params.slug)
-        .single();
+        .maybeSingle();
 
     return {
         title: `Tous les produits | ${store?.name || params.slug}`,

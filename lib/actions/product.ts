@@ -2,6 +2,7 @@
 
 import { revalidatePath, unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { InsertProduct, UpdateProduct } from "@/lib/supabase/types";
 
@@ -220,9 +221,13 @@ export async function deleteProduct(productId: string) {
 // Get products for a store
 export const getStoreProducts = unstable_cache(
     async (storeId: string) => {
-        const supabase = createClient();
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false } }
+        );
 
-        const { data: products, error } = await supabase
+        const { data: products, error } = await supabaseAdmin
             .from("products")
             .select("*")
             .eq("store_id", storeId)
@@ -254,22 +259,26 @@ export async function generateSlug(name: string): Promise<string> {
 // Get product by slug and store slug
 export const getProductBySlug = unstable_cache(
     async (storeSlug: string, productSlug: string) => {
-        const supabase = createClient();
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false } }
+        );
 
-        const { data: store } = await supabase
+        const { data: store } = await supabaseAdmin
             .from("stores")
             .select("id")
             .eq("slug", storeSlug)
-            .single();
+            .maybeSingle();
 
         if (!store) return null;
 
-        const { data: product } = await supabase
+        const { data: product } = await supabaseAdmin
             .from("products")
             .select("*")
             .eq("store_id", store.id)
             .eq("slug", productSlug)
-            .single();
+            .maybeSingle();
 
         return product;
     },
@@ -280,9 +289,13 @@ export const getProductBySlug = unstable_cache(
 // Get similar products based on category
 export const getSimilarProducts = unstable_cache(
     async (storeId: string, currentProductId: string, category: string | null, limit: number = 4) => {
-        const supabase = createClient();
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false } }
+        );
 
-        let query = supabase
+        let query = supabaseAdmin
             .from("products")
             .select("*")
             .eq("store_id", storeId)

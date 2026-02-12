@@ -65,7 +65,7 @@ export async function generateMetadata({ params }: StorePageProps) {
         .from("stores")
         .select("name, description, logo_url, banner_url")
         .eq("slug", params.slug)
-        .single();
+        .maybeSingle();
 
     if (!store) {
         return {

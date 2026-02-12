@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { ThemeProvider } from "@/lib/theme-engine/context";
+import { getStoreBySlug } from "@/lib/actions/store";
 import { DEFAULT_THEME, ThemeConfig } from "@/lib/theme-engine/types";
 import { StorefrontWrapper } from "@/components/storefront/wrapper";
 import { Shield, Eye, Lock, FileText } from "lucide-react";
@@ -14,15 +14,10 @@ interface PrivacyPageProps {
 export default async function PrivacyPage({ params }: PrivacyPageProps) {
     const supabase = createClient();
 
-    // Fetch store by slug
-    const { data: store, error } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("slug", params.slug)
-        .eq("is_active", true)
-        .single();
+    // Fetch store by slug using cached action
+    const store = await getStoreBySlug(params.slug);
 
-    if (error || !store) {
+    if (!store || !store.is_active) {
         notFound();
     }
 

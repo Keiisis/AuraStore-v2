@@ -3,6 +3,7 @@
 import { revalidatePath, unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { DEFAULT_THEME } from "@/lib/theme-engine/types";
 import { getUserPlanLimits } from "./plans";
@@ -294,13 +295,17 @@ export async function deleteStore(storeId: string) {
 // Get store by slug
 export const getStoreBySlug = unstable_cache(
     async (slug: string) => {
-        const supabase = createClient();
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false } }
+        );
 
-        const { data: store, error } = await supabase
+        const { data: store, error } = await supabaseAdmin
             .from("stores")
             .select("*")
             .eq("slug", slug)
-            .single();
+            .maybeSingle();
 
         if (error) {
             return null;
