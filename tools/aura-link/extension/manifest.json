@@ -1,0 +1,31 @@
+{
+    "manifest_version": 3,
+    "name": "Aura Link - AI Injector",
+    "version": "1.0",
+    "description": "Connecte l'intelligence web (Arena, Claude) à votre projet local.",
+    "permissions": [
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "http://localhost:3666/*",
+        "https://arena.lmsys.org/*",
+        "https://chat.lmsys.org/*",
+        "https://claude.ai/*",
+        "https://chatgpt.com/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    }
+}
