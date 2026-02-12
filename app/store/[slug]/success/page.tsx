@@ -5,6 +5,9 @@ import { ThemeProvider } from "@/lib/theme-engine/context";
 import { DEFAULT_THEME } from "@/lib/theme-engine/types";
 import { SuccessClient } from "./success-client";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface SuccessPageProps {
     params: {
         slug: string;
@@ -27,7 +30,7 @@ export default async function SuccessPage({ params, searchParams }: SuccessPageP
         <ThemeProvider initialTheme={themeConfig}>
             <StorefrontWrapper store={store} products={[]}>
                 <SuccessClient
-                    sessionId={searchParams.session_id}
+                    sessionId={Array.isArray(searchParams.session_id) ? searchParams.session_id[0] : searchParams.session_id}
                     storeName={store.name}
                 />
             </StorefrontWrapper>

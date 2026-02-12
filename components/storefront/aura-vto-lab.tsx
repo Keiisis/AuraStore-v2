@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Upload,
     Camera,
     Sparkles,
     X,
     Scan,
-    Shirt,
-    Watch,
     Loader2,
     CheckCircle2,
     Image as ImageIcon,
@@ -44,6 +41,7 @@ export function AuraVtoLab({ product, isOpen, onClose, storeId }: AuraVtoLabProp
     const [leadWhatsApp, setLeadWhatsApp] = useState("");
     const [isSubmittingLead, setIsSubmittingLead] = useState(false);
     const [aiMarketingMessage, setAiMarketingMessage] = useState("");
+    const [currentLeadId, setCurrentLeadId] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -114,23 +112,25 @@ export function AuraVtoLab({ product, isOpen, onClose, storeId }: AuraVtoLabProp
         setIsSubmittingLead(true);
 
         try {
-            // Save lead to database
-            const { error } = await supabase.from('vto_leads').insert({
+            const { createVtoLead } = await import("@/lib/actions/vto");
+            const result = await createVtoLead({
                 store_id: storeId,
                 product_id: product.id,
                 customer_name: leadName,
                 customer_whatsapp: leadWhatsApp,
-                user_photo_url: userImage, // In a real app, upload this to storage first
-                status: 'new'
+                user_photo_url: userImage || "",
             });
 
-            if (error) throw error;
+            if (result.error) throw new Error(result.error);
+            if (result.lead) {
+                setCurrentLeadId(result.lead.id);
+            }
 
             setStep('analyzing');
             startTryOn();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Lead submission error:", error);
-            toast.error("Erreur d'enregistrement.");
+            toast.error(error.message || "Erreur d'enregistrement.");
         } finally {
             setIsSubmittingLead(false);
         }
@@ -157,6 +157,12 @@ export function AuraVtoLab({ product, isOpen, onClose, storeId }: AuraVtoLabProp
                 setEngineMode(data.mode);
                 setStep('result');
 
+                // Update lead result via server action
+                if (currentLeadId) {
+                    const { updateVtoLeadResult } = await import("@/lib/actions/vto");
+                    await updateVtoLeadResult(currentLeadId, data.imageUrl);
+                }
+
                 // Generate AI Marketing Message via Groq
                 try {
                     const copyResponse = await fetch('/api/ai/copywriter', {
@@ -174,11 +180,6 @@ export function AuraVtoLab({ product, isOpen, onClose, storeId }: AuraVtoLabProp
                 } catch (e) {
                     console.error("AI Copy failed:", e);
                 }
-
-                // Update lead with result photo
-                await supabase.from('vto_leads')
-                    .update({ result_photo_url: data.imageUrl })
-                    .match({ customer_whatsapp: leadWhatsApp, store_id: storeId });
 
                 toast.success("Fusion Aura terminée !");
             } else {

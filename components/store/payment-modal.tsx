@@ -126,7 +126,7 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
                 if (result.url) {
                     // RECORD THE ORDER BEFORE REDIRECTING
                     const { createOrder } = await import("@/lib/actions/order");
-                    await createOrder({
+                    const orderResult = await createOrder({
                         store_id: store.id,
                         customer_name: customerInfo.name,
                         customer_email: customerInfo.email,
@@ -139,6 +139,12 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
                         provider_order_id: result.sessionId,
                         notes: `Stripe Session ID: ${result.sessionId}`
                     });
+
+                    if (orderResult.error) {
+                        toast.error(`Erreur création commande: ${orderResult.error}`);
+                        setIsProcessing(false);
+                        return;
+                    }
 
                     window.location.href = result.url;
                     return;

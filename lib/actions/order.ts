@@ -16,7 +16,12 @@ const createOrderSchema = z.object({
     customer_name: z.string().min(2),
     customer_phone: z.string().optional().nullable(),
     items: z.array(orderItemSchema), // Strict validation
-    payment_method: z.enum(["whatsapp", "stripe", "cash", "paypal", "flutterwave", "fedapay", "kkiapay"]),
+    payment_method: z.enum([
+        "whatsapp", "stripe", "cash", "paypal",
+        "flutterwave", "fedapay", "kkiapay",
+        "cinetpay", "zeyow", "moneco",
+        "mtn_money", "moov_money"
+    ]),
     shipping_address: z.any().optional().nullable(),
     notes: z.string().optional().nullable(),
     provider_order_id: z.string().optional().nullable(),
@@ -139,33 +144,62 @@ export async function updateOrderStatus(orderId: string, status: "pending" | "co
 export async function getOrderBySessionId(sessionId: string) {
     if (!sessionId) return { error: "Session ID missing" };
 
-    // Use Admin Client to bypass RLS for success page display
-    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
-    const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        { auth: { persistSession: false } }
-    );
+    try {
+        // Use Admin Client to bypass RLS for success page display
+        const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            { auth: { persistSession: false } }
+        );
 
-    const { data, error } = await supabaseAdmin
-        .from("orders")
-        .select(`
-            *,
-            stores (
-                name,
-                logo_url,
-                address,
-                phone,
-                email
-            )
-        `)
-        .or(`provider_order_id.eq.${sessionId},notes.ilike.%${sessionId}%`)
-        .maybeSingle();
+        console.log(`[getOrderBySessionId] Searching for: ${sessionId}`);
 
-    if (error || !data) {
-        console.error("Error fetching order by session id:", error);
-        return { error: "Failed to fetch order details" };
+        // Try exact match on provider_order_id first
+        const { data, error } = await supabaseAdmin
+            .from("orders")
+            .select(`
+                *,
+                stores (
+                    name,
+                    logo_url,
+                    address,
+                    phone,
+                    email
+                )
+            `)
+            .eq("provider_order_id", sessionId)
+            .maybeSingle();
+
+        if (error) {
+            console.error("[getOrderBySessionId] DB Error:", error);
+            return { error: "Database error" };
+        }
+
+        if (data) {
+            console.log(`[getOrderBySessionId] Found order: ${data.id}`);
+            return { order: data };
+        }
+
+        // Fallback: Search in notes (for manual or legacy orders)
+        console.log(`[getOrderBySessionId] No exact match, trying notes search...`);
+        const { data: fallbackData } = await supabaseAdmin
+            .from("orders")
+            .select("*, stores(*)")
+            .ilike("notes", `%${sessionId}%`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (fallbackData) {
+            console.log(`[getOrderBySessionId] Found order via notes: ${fallbackData.id}`);
+            return { order: fallbackData };
+        }
+
+        console.warn(`[getOrderBySessionId] No order found for session ID: ${sessionId}`);
+        return { error: "Commande non trouvée" };
+    } catch (e) {
+        console.error("[getOrderBySessionId] Exception:", e);
+        return { error: "Server exception" };
     }
-
-    return { order: data };
 }
