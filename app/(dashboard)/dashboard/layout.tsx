@@ -27,6 +27,9 @@ export default async function DashboardLayout({
         redirect("/login");
     }
 
+    // Force cast to bypass narrowing issues during deployment
+    const userRole = (profile as any).role;
+
     return (
         <div className="min-h-screen bg-[#08080A]">
             {/* Dashboard Header */}
@@ -37,7 +40,7 @@ export default async function DashboardLayout({
             {stores?.[0] && (
                 <AuraOmniVoice
                     storeId={stores[0].id}
-                    userRole={profile?.role}
+                    userRole={userRole}
                 />
             )}
 

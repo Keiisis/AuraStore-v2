@@ -65,7 +65,7 @@ export default async function AdminLayout({
             </header>
 
             {/* Master AI Assistant (No storeId needed for super-admin) */}
-            <AuraOmniVoice storeId="platform" context="admin" userRole={profile?.role} />
+            <AuraOmniVoice storeId="platform" context="admin" userRole={userRole} />
 
             <div className="flex">
                 {/* Sidebar Admin */}
