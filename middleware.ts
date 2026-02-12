@@ -29,6 +29,7 @@ function getSubdomain(request: NextRequest): string | null {
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const isProtectedPath = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+    const isAuthPath = pathname.startsWith("/login") || pathname.startsWith("/auth");
 
     // Skip middleware for static files and API routes
     if (
@@ -51,9 +52,9 @@ export async function middleware(request: NextRequest) {
         url.pathname = `/store/${subdomain}${pathname}`;
         response = NextResponse.rewrite(url);
         response.headers.set("x-store-slug", subdomain);
-    } else if (isProtectedPath) {
-        response = await updateSession(request);
-    } else if (pathname.startsWith("/auth/callback")) {
+    } else if (isProtectedPath || isAuthPath) {
+        // Always refresh session for protected AND auth paths
+        // This ensures cookies are properly set after login/signup
         response = await updateSession(request);
     } else {
         response = NextResponse.next();
