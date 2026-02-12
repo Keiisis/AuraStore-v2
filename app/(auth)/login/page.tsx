@@ -34,6 +34,10 @@ export default function LoginPage() {
                 setSuccess(res.message || "Success!");
             }
         } catch (err: any) {
+            // Next.js redirection throws an error type "NEXT_REDIRECT" that we must ignore/allow
+            if (err.message === "NEXT_REDIRECT" || err.message?.includes("NEXT_REDIRECT")) {
+                return; // Let the redirect happen
+            }
             setError(err.message);
         } finally {
             setLoading(false);
