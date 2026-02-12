@@ -116,7 +116,7 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
                     items: sanitizedItems,
                     currency: typeof currency === 'string' ? currency : (currency as any).code || "xof",
                     customerEmail: customerInfo.email,
-                    successUrl: window.location.href.split('?')[0] + "?payment=success",
+                    successUrl: window.location.origin + `/store/${store.slug}/success`,
                     cancelUrl: window.location.href,
                 });
 
