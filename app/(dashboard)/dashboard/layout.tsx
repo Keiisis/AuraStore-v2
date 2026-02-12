@@ -58,7 +58,9 @@ export default async function DashboardLayout({
                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-mono mb-6 overflow-hidden text-left">
                         ID: {user.id}<br />
                         Role: {user.role}<br />
-                        Provider: {user.app_metadata.provider}
+                        Provider: {user.app_metadata.provider}<br />
+                        <hr className="border-red-500/20 my-2" />
+                        Admin Key Loaded: {process.env.SUPABASE_SERVICE_ROLE_KEY ? "YES" : "NO"}
                     </div>
                     <form action={async () => {
                         "use server";
