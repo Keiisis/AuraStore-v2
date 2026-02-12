@@ -18,12 +18,16 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
     if (!user) return null;
 
     // Get store details
-    const { data: store } = await supabase
+    const { data: store, error } = await supabase
         .from("stores")
         .select("id, name")
         .eq("slug", slug)
         .eq("owner_id", user.id)
-        .single();
+        .maybeSingle();
+
+    if (error) {
+        console.error("Store Fetch Error:", error);
+    }
 
     if (!store) {
         notFound();

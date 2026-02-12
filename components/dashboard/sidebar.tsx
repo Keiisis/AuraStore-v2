@@ -67,7 +67,10 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
     const storeSlug = isStoreContext ? pathSegments[1] : (stores.length > 0 ? stores[0].slug : null);
 
     const currentNavItems = navItems.map(item => {
-        if (!storeSlug || item.href === "/dashboard") return item;
+        // Global pages that should NOT be scoped to a store
+        const globalPages = ["/dashboard", "/dashboard/subscription", "/dashboard/settings", "/dashboard/new-store"];
+
+        if (!storeSlug || globalPages.includes(item.href)) return item;
 
         // Convert /dashboard/products to /dashboard/[slug]/products
         const subPath = item.href.replace("/dashboard/", "");
