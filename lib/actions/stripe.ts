@@ -19,14 +19,20 @@ export async function createStripeCheckoutSession({
     cancelUrl: string;
 }) {
     try {
-        const supabase = createClient();
+        // Initialize Admin client immediately for secure server-side ops
+        const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            { auth: { persistSession: false } }
+        );
 
-        // 1. Get Store Config (Securely on Server side)
-        const { data: store, error } = await supabase
+        // 1. Get Store Config
+        const { data: store, error } = await supabaseAdmin
             .from("stores")
             .select("name, payment_config")
             .eq("id", storeId)
-            .single();
+            .maybeSingle();
 
         if (error || !store) {
             console.error("Store not found:", error);
@@ -42,14 +48,13 @@ export async function createStripeCheckoutSession({
 
         // 2. Initialize Stripe with VENDOR'S Secret Key
         const stripe = new Stripe(secretKey, {
-            apiVersion: "2023-10-16", // Use a specific API version for stability
+            apiVersion: "2023-10-16",
         });
 
         // 3. SECURE PRICE VERIFICATION (Anti-Tampering)
-        // Extract product IDs to fetch trusted prices from DB
         const productIds = items.map(item => item.id).filter(id => id);
 
-        const { data: dbProducts } = await supabase
+        const { data: dbProducts } = await supabaseAdmin
             .from("products")
             .select("id, price, name")
             .in("id", productIds)

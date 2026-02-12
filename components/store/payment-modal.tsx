@@ -104,6 +104,7 @@ export function PaymentModal({ isOpen, onClose, store, totalAmount, items, onSuc
             if (selectedMethod === "stripe") {
                 // Ensure items are properly formatted for Stripe Action
                 const sanitizedItems = items.map(item => ({
+                    id: item.id || item.product?.id,
                     name: item.name || item.product?.name || "Article d'exception",
                     price: Number(item.price || item.product?.price || 0),
                     image: item.image || (item.product?.images && item.product.images[0]) || "",
