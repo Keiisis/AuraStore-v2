@@ -2,164 +2,126 @@ import { ImageResponse } from "next/og";
 import { getProductBySlug } from "@/lib/actions/product";
 import { getStoreBySlug } from "@/lib/actions/store";
 
-// Route segment config
 export const runtime = "edge";
-
-// Image metadata
-export const alt = "Aperçu du Produit";
-export const size = {
-    width: 1200,
-    height: 630,
-};
-
+export const alt = "Aura Store Preview";
+export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function Image({ params }: { params: { slug: string; productSlug: string } }) {
-    // Fetch data
-    const [product, store] = await Promise.all([
-        getProductBySlug(params.slug, params.productSlug),
-        getStoreBySlug(params.slug)
-    ]);
+    try {
+        const [product, store] = await Promise.all([
+            getProductBySlug(params.slug, params.productSlug),
+            getStoreBySlug(params.slug)
+        ]);
 
-    if (!product || !store) {
+        if (!product || !store) throw new Error("Not found");
+
+        const storeName = store.name || "Aura Store";
+        const price = `${product.price.toLocaleString("fr-FR")} FCFA`;
+        const productImage = product.images?.[0];
+
         return new ImageResponse(
             (
                 <div style={{
-                    fontSize: 40,
-                    color: 'white',
-                    background: 'black',
-                    width: '100%',
                     height: '100%',
+                    width: '100%',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    backgroundColor: '#050505',
+                    color: 'white',
+                    fontFamily: 'sans-serif',
                 }}>
-                    Produit Introuvable
+                    {/* Left Side: Info */}
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        width: '55%',
+                        height: '100%',
+                        padding: '60px',
+                        justifyContent: 'center',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
+                            <div style={{ width: '40px', height: '6px', backgroundColor: '#FE7501', borderRadius: '3px' }} />
+                            <div style={{ fontSize: '28px', fontWeight: 800, color: '#FE7501', textTransform: 'uppercase', letterSpacing: '4px' }}>
+                                {storeName}
+                            </div>
+                        </div>
+
+                        <div style={{ fontSize: '80px', fontWeight: 900, lineHeight: 1, marginBottom: '40px', color: 'white' }}>
+                            {product.name}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ fontSize: '60px', fontWeight: 800, color: 'white' }}>
+                                {price}
+                            </div>
+                            {product.compare_at_price && (
+                                <div style={{ fontSize: '32px', color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through' }}>
+                                    {product.compare_at_price.toLocaleString("fr-FR")} FCFA
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right Side: Product Image with Aura Glow */}
+                    <div style={{
+                        display: 'flex',
+                        width: '45%',
+                        height: '100%',
+                        position: 'relative',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}>
+                        {/* Orange Aura Glow Behind Image */}
+                        <div style={{
+                            position: 'absolute',
+                            width: '400px',
+                            height: '400px',
+                            backgroundColor: '#FE7501',
+                            borderRadius: '50%',
+                            opacity: 0.15,
+                            filter: 'blur(100px)',
+                        }} />
+
+                        {productImage && (
+                            <img
+                                src={productImage}
+                                alt={product.name}
+                                style={{
+                                    width: '85%',
+                                    height: '85%',
+                                    objectFit: 'contain',
+                                    borderRadius: '24px',
+                                }}
+                            />
+                        )}
+                    </div>
+
+                    {/* Branding Bottom Right */}
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '40px',
+                        right: '40px',
+                        fontSize: '14px',
+                        fontWeight: 900,
+                        color: 'rgba(255,255,255,0.1)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '5px',
+                    }}>
+                        AURASTORE TECHNOLOGIES
+                    </div>
+                </div>
+            ),
+            { ...size }
+        );
+    } catch (e) {
+        return new ImageResponse(
+            (
+                <div style={{ background: 'black', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: 'white', fontSize: 40 }}>
+                    Aura Store | {params.productSlug}
                 </div>
             ),
             { ...size }
         );
     }
-
-    const price = `${product.price.toLocaleString("fr-FR")} FCFA`;
-    const comparePrice = product.compare_at_price ? `${product.compare_at_price.toLocaleString("fr-FR")} FCFA` : null;
-    const storeName = store.name || "Aura Store";
-    const bgImage = product.images?.[0]; // URL of the product image
-    const hasPromo = !!comparePrice;
-
-    return new ImageResponse(
-        (
-            <div
-                style={{
-                    height: '100%',
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-end',
-                    backgroundColor: '#050505',
-                    backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    fontFamily: 'sans-serif',
-                }}
-            >
-                {/* Gradient Overlay for Readability */}
-                <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: '70%',
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0))',
-                    display: 'flex', // Needed for children
-                }} />
-
-                {/* Content Card */}
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '60px',
-                    position: 'relative', // To sit on top of gradient
-                    zIndex: 10,
-                }}>
-                    {/* Store Badge */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        marginBottom: '20px',
-                    }}>
-                        <div style={{
-                            backgroundColor: '#FE7501',
-                            height: '4px',
-                            width: '40px',
-                            borderRadius: '2px',
-                        }} />
-                        <div style={{
-                            color: '#FE7501',
-                            fontSize: 24,
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.1em',
-                        }}>
-                            {storeName}
-                        </div>
-                    </div>
-
-                    {/* Product Title */}
-                    <div style={{
-                        color: 'white',
-                        fontSize: 72,
-                        fontWeight: 900,
-                        lineHeight: 1.1,
-                        marginBottom: '24px',
-                        textShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                        maxWidth: '90%',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                    }}>
-                        {product.name}
-                    </div>
-
-                    {/* Price Tag */}
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '24px' }}>
-                        <div style={{
-                            color: 'white',
-                            fontSize: 56,
-                            fontWeight: 800,
-                        }}>
-                            {price}
-                        </div>
-                        {hasPromo && (
-                            <div style={{
-                                color: 'rgba(255,255,255,0.5)',
-                                fontSize: 36,
-                                textDecoration: 'line-through',
-                                fontWeight: 500,
-                            }}>
-                                {comparePrice}
-                            </div>
-                        )}
-                        {hasPromo && (
-                            <div style={{
-                                backgroundColor: '#EF4444',
-                                color: 'white',
-                                fontSize: 24,
-                                fontWeight: 700,
-                                padding: '4px 16px',
-                                borderRadius: '100px',
-                                marginLeft: '10px',
-                            }}>
-                                PROMO
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        ),
-        {
-            ...size,
-        }
-    );
 }

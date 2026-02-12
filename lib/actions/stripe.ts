@@ -47,18 +47,21 @@ export async function createStripeCheckoutSession({
 
         // 3. Prepare Line Items
         const lineItems = items.map((item) => {
+            // Ensure price is a valid number
+            const rawPrice = Number(item.price);
+            if (isNaN(rawPrice)) {
+                throw new Error(`Prix invalide pour l'article: ${item.name}`);
+            }
+
             // Image handling: Stripe requires valid URLs
-            // If local/relative, try to make absolute or skip
             const images = item.image && item.image.startsWith("http") ? [item.image] : [];
 
-            // Amount handling for Zero-Decimal currencies (XOF, XAF, JPY, etc.)
-            // XOF is effectively zero-decimal in Stripe (1 XOF = 1 unit)
-            // EUR/USD are 2-decimal (1.00 = 100 units)
-            let unitAmount = Math.round(item.price);
+            // Amount handling
+            let unitAmount = Math.round(rawPrice);
             const zeroDecimalCurrencies = ["xof", "xaf", "jpy", "clp", "gnf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv"];
 
             if (!zeroDecimalCurrencies.includes(currency.toLowerCase())) {
-                unitAmount = Math.round(item.price * 100);
+                unitAmount = Math.round(rawPrice * 100);
             }
 
             return {
@@ -71,7 +74,7 @@ export async function createStripeCheckoutSession({
                     },
                     unit_amount: unitAmount,
                 },
-                quantity: item.quantity,
+                quantity: item.quantity || 1,
             };
         });
 
