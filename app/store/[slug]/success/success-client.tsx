@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
@@ -12,6 +13,7 @@ import { useParams } from "next/navigation";
 import { useCart } from "@/components/store/cart-context";
 import { formatPrice } from "@/lib/currency-engine";
 import { getOrderBySessionId } from "@/lib/actions/order";
+
 // ────────────────────────────────────────────
 // AI-Written Personalized Messages
 // ────────────────────────────────────────────
@@ -22,36 +24,45 @@ function generateThankYouMessage(customerName: string, itemCount: number, storeN
     }
     return `${first}, merci pour cette belle commande de ${itemCount} articles ! L'équipe ${storeName} est ravie de vous compter parmi ses clients privilégiés. Chaque article est vérifié et emballé avec attention avant expédition.`;
 }
+
 function generateDeliveryNote(itemCount: number): string {
     if (itemCount === 1) {
         return "Votre article a été officiellement validé et enregistré dans notre système de suivi. Il sera préparé et expédié dans les meilleurs délais.";
     }
     return `Vos ${itemCount} articles ont été officiellement validés et enregistrés dans notre système de suivi. Ils seront préparés et expédiés dans les meilleurs délais.`;
 }
+
 // ────────────────────────────────────────────
 // Client Content Component — CORRECTED
 // ────────────────────────────────────────────
 export function SuccessClient({ sessionId, storeName: initialStoreName }: { sessionId?: string, storeName: string }) {
     const { slug } = useParams();
-    const { clearCart } = useCart();
+    // FIX: Récupérer isLoaded depuis le contexte
+    const { clearCart, isLoaded } = useCart();
+
     const cartClearedRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [order, setOrder] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+
     const fetchOrder = useCallback(async (signal?: AbortSignal) => {
         if (!sessionId) {
             setLoading(false);
             return;
         }
+
         setLoading(true);
         setError(null);
+
         try {
             let attempts = 0;
             let foundOrder = null;
+
             while (attempts < 3 && !foundOrder) {
                 if (signal?.aborted) return;
                 const result = await getOrderBySessionId(sessionId);
                 if (signal?.aborted) return;
+
                 if (result.order) {
                     foundOrder = result.order;
                 } else {
@@ -62,6 +73,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                     }
                 }
             }
+
             if (!signal?.aborted) {
                 if (foundOrder) {
                     setOrder(foundOrder);
@@ -78,17 +90,26 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
             }
         }
     }, [sessionId]);
+
+    // FIX: useEffect séparé pour clearCart — attend que isLoaded soit true
+    // Cela garantit que le localStorage a été restauré AVANT qu'on le vide
     useEffect(() => {
-        const abortController = new AbortController();
-        if (!cartClearedRef.current) {
+        if (isLoaded && !cartClearedRef.current) {
             clearCart();
             cartClearedRef.current = true;
         }
+    }, [isLoaded, clearCart]);
+
+    // Fetch order — indépendant du clearCart
+    useEffect(() => {
+        const abortController = new AbortController();
         fetchOrder(abortController.signal);
+
         return () => {
             abortController.abort();
         };
-    }, [fetchOrder, clearCart]);
+    }, [fetchOrder]);
+
     // ── Loading State ──
     if (loading) {
         return (
@@ -100,11 +121,14 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
             </div>
         );
     }
+
     // ── Data Extraction ──
     const hasOrder = order !== null;
     const items: any[] = order?.items || [];
+
     const storeRaw = order?.stores;
     const store = Array.isArray(storeRaw) ? storeRaw[0] : (storeRaw || {});
+
     const storeName = store.name || initialStoreName || "Aura Store";
     const invoiceNumber = order?.id ? `INV-${order.id.slice(-8).toUpperCase()}` : "INV-000000";
     const orderDate = order?.created_at
@@ -124,11 +148,14 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
         ? order.shipping_address?.address
         : order?.shipping_address || "";
     const paymentMethod = order?.payment_method || "stripe";
+
     const thankYouMsg = hasOrder ? generateThankYouMessage(customerName, items.length, storeName) : "";
     const deliveryNote = hasOrder ? generateDeliveryNote(items.length) : "";
+
     return (
         <div className="min-h-screen text-black bg-[#F8F9FA] font-sans pt-12 pb-24 px-4 sm:px-8 print:bg-white print:pt-0 print:pb-0 print:px-0 print:min-h-0">
             <div className="relative z-10 max-w-[820px] mx-auto space-y-8 print:max-w-none print:mx-0 print:space-y-0">
+
                 {/* Status Message — MASQUÉ À L'IMPRESSION */}
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -151,6 +178,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                                 ? `Merci pour votre confiance chez ${storeName}`
                                 : "Nous n'avons pas pu charger les détails de votre achat"}
                         </p>
+
                         {!hasOrder && (
                             <div className="mt-4 flex flex-col items-center gap-2">
                                 {error && (
@@ -171,6 +199,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                         )}
                     </div>
                 </motion.div>
+
                 {/* ─── OFFICIAL INVOICE ─── */}
                 {hasOrder && (
                     <>
@@ -198,6 +227,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                                         <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold print:text-black">{orderTime}</p>
                                     </div>
                                 </div>
+
                                 {/* Order Confirmation Banner */}
                                 <div className="flex items-start gap-4 p-6 bg-gray-50 rounded-2xl border border-gray-100 print:bg-white print:border print:border-gray-300 print:rounded-lg">
                                     <Sparkles className="w-5 h-5 text-[#FE7501] shrink-0 mt-0.5 print:text-black" />
@@ -206,6 +236,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                                         <p className="text-[13px] text-gray-600 leading-relaxed font-medium italic print:text-black">"{thankYouMsg}"</p>
                                     </div>
                                 </div>
+
                                 {/* Customer & Info Grid */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
                                     <div>
@@ -230,6 +261,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                                         </div>
                                     </div>
                                 </div>
+
                                 {/* Items Table */}
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 rounded-xl text-[9px] font-black text-gray-400 uppercase tracking-widest border border-gray-100 print:bg-white print:text-black print:border-black print:rounded-none">
@@ -264,6 +296,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                                         ))}
                                     </div>
                                 </div>
+
                                 {/* Totals Section */}
                                 <div className="flex flex-col sm:flex-row justify-between items-end gap-10 pt-8 border-t border-gray-100 print:border-gray-300">
                                     <div className="space-y-4 max-w-xs">
@@ -289,6 +322,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                                     </div>
                                 </div>
                             </div>
+
                             {/* Footer / Badges */}
                             <div className="px-8 sm:px-12 py-8 bg-gray-50/80 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-6 print:bg-white print:border-gray-300">
                                 {/* Boutons — MASQUÉS À L'IMPRESSION */}
@@ -314,6 +348,7 @@ export function SuccessClient({ sessionId, storeName: initialStoreName }: { sess
                                 </div>
                             </div>
                         </motion.div>
+
                         {/* Return Home — MASQUÉ À L'IMPRESSION */}
                         <div className="flex justify-center pt-8 print:hidden">
                             <Link

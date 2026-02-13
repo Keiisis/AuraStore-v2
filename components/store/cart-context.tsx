@@ -24,6 +24,8 @@ interface CartContextType {
     isCartOpen: boolean;
     openCart: () => void;
     closeCart: () => void;
+    // FIX: Nouvel état exposé — true uniquement après restauration du localStorage
+    isLoaded: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -37,6 +39,9 @@ export function CartProvider({ children, storeId }: CartProviderProps) {
     const [items, setItems] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+
+    // FIX: État qui track si le localStorage a été lu
+    const [isLoaded, setIsLoaded] = useState(false);
 
     const storageKey = `aurastore-cart-${storeId}`;
 
@@ -54,6 +59,8 @@ export function CartProvider({ children, storeId }: CartProviderProps) {
                 console.error("Failed to parse cart", e);
             }
         }
+        // FIX: Marquer comme chargé APRÈS la restauration (que le localStorage soit vide ou non)
+        setIsLoaded(true);
     }, [storageKey, storeId]);
 
     useEffect(() => {
@@ -129,6 +136,8 @@ export function CartProvider({ children, storeId }: CartProviderProps) {
                 isCartOpen,
                 openCart,
                 closeCart,
+                // FIX: Exposer isLoaded
+                isLoaded,
             }}
         >
             {children}
