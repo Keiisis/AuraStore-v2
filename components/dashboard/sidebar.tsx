@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -46,43 +45,60 @@ interface DashboardSidebarProps {
     stores: Store[];
 }
 
+// ────────────────────────────────────────────
+// Pages globales = pas de slug dans l'URL
+// Pages scoped  = nécessitent un slug de boutique
+// ────────────────────────────────────────────
 const navItems = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Vue d'ensemble" },
-    { href: "/dashboard/products", icon: Package, label: "Produits" },
-    { href: "/dashboard/orders", icon: ShoppingCart, label: "Commandes" },
-    { href: "/dashboard/marketing", icon: Magnet, label: "Marketing" },
-    { href: "/dashboard/imagen", icon: Sparkles, label: "Imagen Lab" },
-    { href: "/dashboard/analytics", icon: BarChart3, label: "Analyses" },
-    { href: "/dashboard/editor", icon: Palette, label: "Éditeur Thème" },
-    { href: "/dashboard/subscription", icon: Crown, label: "Mon Plan" },
-    { href: "/dashboard/settings", icon: Settings, label: "Paramètres" },
+    { href: "/dashboard", icon: LayoutDashboard, label: "Vue d'ensemble", scoped: false },
+    { href: "/dashboard/products", icon: Package, label: "Produits", scoped: true },
+    { href: "/dashboard/orders", icon: ShoppingCart, label: "Commandes", scoped: true },
+    { href: "/dashboard/marketing", icon: Magnet, label: "Marketing", scoped: true },
+    { href: "/dashboard/imagen", icon: Sparkles, label: "Imagen Lab", scoped: true },
+    { href: "/dashboard/analytics", icon: BarChart3, label: "Analyses", scoped: true },
+    { href: "/dashboard/editor", icon: Palette, label: "Éditeur Thème", scoped: true },
+    { href: "/dashboard/subscription", icon: Crown, label: "Mon Plan", scoped: false },
+    { href: "/dashboard/settings", icon: Settings, label: "Paramètres", scoped: false },
 ];
 
 export function DashboardSidebar({ stores }: DashboardSidebarProps) {
     const pathname = usePathname();
 
-    // Check if we are in a store context
+    // ── Déterminer le slug actif ──
     const pathSegments = pathname.split("/").filter(Boolean);
-    const isStoreContext = pathSegments.length >= 2 && pathSegments[0] === "dashboard" && pathSegments[1] !== "new-store";
-    const storeSlug = isStoreContext ? pathSegments[1] : (stores.length > 0 ? stores[0].slug : null);
+    const isStoreContext =
+        pathSegments.length >= 2 &&
+        pathSegments[0] === "dashboard" &&
+        !["new-store", "subscription", "settings"].includes(pathSegments[1]);
 
-    const currentNavItems = navItems.map(item => {
-        // Global pages that should NOT be scoped to a store
-        const globalPages = ["/dashboard", "/dashboard/subscription", "/dashboard/settings", "/dashboard/new-store"];
+    // Slug explicite depuis l'URL, sinon repli sur la première boutique
+    const explicitSlug = isStoreContext ? pathSegments[1] : null;
+    const fallbackSlug = stores.length > 0 ? stores[0].slug : null;
+    const resolvedSlug = explicitSlug || fallbackSlug;
 
-        // If it's a global page, return as is
-        if (globalPages.includes(item.href)) return item;
+    // ── Construire les liens de navigation ──
+    const currentNavItems = navItems
+        .filter((item) => {
+            // Si la page nécessite un slug et qu'aucun slug n'est disponible
+            // (= l'utilisateur n'a aucune boutique), on masque le lien
+            if (item.scoped && !resolvedSlug) return false;
+            return true;
+        })
+        .map((item) => {
+            // Pages globales : href inchangé
+            if (!item.scoped) return item;
 
-        // If no store slug, use global base (though most will need a store)
-        if (!storeSlug) return item;
+            // Pages scoped : /dashboard/products → /dashboard/[slug]/products
+            const subPath = item.href.replace("/dashboard/", "");
 
-        // Convert /dashboard/products to /dashboard/[slug]/products
-        const subPath = item.href.replace("/dashboard/", "");
-        return {
-            ...item,
-            href: `/dashboard/${storeSlug}/${subPath}`
-        };
-    });
+            // Construire le lien avec le slug résolu
+            // Si on a un fallbackSlug mais pas de explicitSlug (ex: on est sur /dashboard/subscription),
+            // le lien pointera vers le premier store de l'utilisateur.
+            return {
+                ...item,
+                href: `/dashboard/${resolvedSlug}/${subPath}`,
+            };
+        });
 
     return (
         <>
@@ -96,7 +112,7 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
                         </p>
                         <div className="space-y-0.5">
                             {stores.map((store) => {
-                                const isSelected = storeSlug === store.slug;
+                                const isSelected = resolvedSlug === store.slug;
                                 return (
                                     <Link
                                         key={store.id}
@@ -104,26 +120,40 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
                                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all group ${isSelected ? "bg-primary/10" : "hover:bg-white/5"
                                             }`}
                                     >
-                                        <div className={`w-7 h-7 rounded-md flex items-center justify-center overflow-hidden ${isSelected ? "bg-primary text-black" : "bg-white/5 text-white/40 group-hover:text-white/60"
-                                            }`}>
+                                        <div
+                                            className={`w-7 h-7 rounded-md flex items-center justify-center overflow-hidden ${isSelected
+                                                    ? "bg-primary text-black"
+                                                    : "bg-white/5 text-white/40 group-hover:text-white/60"
+                                                }`}
+                                        >
                                             {store.logo_url ? (
-                                                <img src={store.logo_url} alt="" className="w-full h-full object-contain p-1" />
+                                                <img
+                                                    src={store.logo_url}
+                                                    alt=""
+                                                    className="w-full h-full object-contain p-1"
+                                                />
                                             ) : (
                                                 (() => {
-                                                    const Icon = (store as any).category ? CATEGORY_ICONS[(store as any).category] || StoreIcon : StoreIcon;
+                                                    const Icon = (store as any).category
+                                                        ? CATEGORY_ICONS[(store as any).category] || StoreIcon
+                                                        : StoreIcon;
                                                     return <Icon className="w-3.5 h-3.5" />;
                                                 })()
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className={`text-[11px] font-bold truncate ${isSelected ? "text-white" : "text-white/40 group-hover:text-white/60"}`}>
+                                            <p
+                                                className={`text-[11px] font-bold truncate ${isSelected
+                                                        ? "text-white"
+                                                        : "text-white/40 group-hover:text-white/60"
+                                                    }`}
+                                            >
                                                 {store.name}
                                             </p>
                                         </div>
                                     </Link>
                                 );
                             })}
-
                             <Link
                                 href="/dashboard/new-store"
                                 className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-dashed border-white/5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
@@ -136,11 +166,10 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
                                 </span>
                             </Link>
                         </div>
-
                         {/* Quick access to live store */}
-                        {storeSlug && (
+                        {resolvedSlug && (
                             <a
-                                href={`/store/${storeSlug}`}
+                                href={`/store/${resolvedSlug}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all group mt-2"
@@ -152,7 +181,6 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
                             </a>
                         )}
                     </div>
-
                     {/* Navigation */}
                     <div className="space-y-1.5">
                         <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] px-3">
@@ -160,25 +188,30 @@ export function DashboardSidebar({ stores }: DashboardSidebarProps) {
                         </p>
                         <nav className="space-y-0.5">
                             {currentNavItems.map((item) => {
-                                const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                                const isActive =
+                                    pathname === item.href ||
+                                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
                                 return (
                                     <Link
                                         key={item.href}
                                         href={item.href}
                                         className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all relative group ${isActive
-                                            ? "text-primary bg-primary/5"
-                                            : "text-white/40 hover:text-white hover:bg-white/5"
+                                                ? "text-primary bg-primary/5"
+                                                : "text-white/40 hover:text-white hover:bg-white/5"
                                             }`}
                                     >
-                                        <item.icon className={`w-4 h-4 transition-colors ${isActive ? "text-primary" : "group-hover:text-white"}`} />
-                                        <span className="font-bold text-[11px] tracking-tight uppercase">{item.label}</span>
+                                        <item.icon
+                                            className={`w-4 h-4 transition-colors ${isActive ? "text-primary" : "group-hover:text-white"
+                                                }`}
+                                        />
+                                        <span className="font-bold text-[11px] tracking-tight uppercase">
+                                            {item.label}
+                                        </span>
                                     </Link>
                                 );
                             })}
                         </nav>
                     </div>
-
-
                 </div>
             </aside>
         </>
