@@ -48,18 +48,34 @@ export function DashboardHeader({ user, stores }: DashboardHeaderProps) {
 
     // Check store context for navigation links
     const pathSegments = pathname.split("/").filter(Boolean);
-    const isStoreContext = pathSegments.length >= 2 && pathSegments[0] === "dashboard" && pathSegments[1] !== "new-store";
-    const storeSlug = isStoreContext ? pathSegments[1] : (stores.length > 0 ? stores[0]?.slug : null);
+    const isStoreContext =
+        pathSegments.length >= 2 &&
+        pathSegments[0] === "dashboard" &&
+        !["new-store", "subscription", "settings", "analytics"].includes(pathSegments[1]);
 
-    const currentNavItems = navItems.map(item => {
-        const globalPages = ["/dashboard", "/dashboard/subscription", "/dashboard/settings", "/dashboard/new-store"];
-        if (!storeSlug || globalPages.includes(item.href)) return item;
-        const subPath = item.href.replace("/dashboard/", "");
-        return {
-            ...item,
-            href: `/dashboard/${storeSlug}/${subPath}`
-        };
-    });
+    // Slug explicite depuis l'URL, sinon repli sur la première boutique
+    const explicitSlug = isStoreContext ? pathSegments[1] : null;
+    const fallbackSlug = stores.length > 0 ? stores[0].slug : null;
+    const resolvedSlug = explicitSlug || fallbackSlug;
+
+    const currentNavItems = navItems
+        .filter((item) => {
+            // Si la page nécessite un slug et qu'aucun slug n'est disponible, on masque le lien
+            const isScoped = !["/dashboard", "/dashboard/subscription", "/dashboard/settings", "/dashboard/new-store"].includes(item.href);
+            if (isScoped && !resolvedSlug) return false;
+            return true;
+        })
+        .map((item) => {
+            const globalPages = ["/dashboard", "/dashboard/subscription", "/dashboard/settings", "/dashboard/new-store"];
+            if (globalPages.includes(item.href)) return item;
+
+            const subPath = item.href.replace("/dashboard/", "");
+            return {
+                ...item,
+                href: `/dashboard/${resolvedSlug}/${subPath}`
+            };
+        });
+
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
